@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-test_suite.py - Automated test suite for Krova Agribot
+test_suite.py - Automated test suite for Krova Agri
 Run: python bin/test_suite.py
 """
 import os

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-test_full_pipeline.py - Krova Agribot end-to-end test (no extra dependencies)
+test_full_pipeline.py - Krova Agri end-to-end test (no extra dependencies)
 """
 import os
 import sys
@@ -24,7 +24,7 @@ def log_test(step, success, details=""):
 
 def run_e2e_suite():
     print("==================================================")
-    print("   KROVA AGRIBOT AUTOMATED END-TO-END TEST   ")
+    print("   KROVA AGRI AUTOMATED END-TO-END TEST   ")
     print("==================================================")
     all_ok = True
 

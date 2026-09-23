@@ -103,7 +103,7 @@ def main():
     subline = "-" * 90
 
     print(line)
-    print(" 📊 FEEDBACK AND TESTER MONITORING DASHBOARD (Krova Agribot)")
+    print(" 📊 FEEDBACK AND TESTER MONITORING DASHBOARD (Krova Agri)")
     print(line)
 
     print("\n1. TAUX GLOBAL DE SATISFACTION")

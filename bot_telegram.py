@@ -156,7 +156,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     welcome_text = (
-        "🌾 <b>សួស្តី! ស្វាគមន៍មកកាន់ Krova Agribot</b>\n"
+        "🌾 <b>សួស្តី! ស្វាគមន៍មកកាន់ Krova Agri</b>\n"
         "🧪 <b>ស្ថានភាព៖ <i>វគ្គតេស្តសាកល្បង (Pilot Test Phase)</i></b>\n\n"
         "ជំនួយការកសិកម្មឆ្លាតវៃសម្រាប់កសិករនៅកម្ពុជា (CARDI / MAFF)។\n\n"
         "<b>សមត្ថភាពចម្បង៖</b>\n"
@@ -170,7 +170,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• /quota : មើលចំនួនប្រើប្រាស់ប្រចាំថ្ងៃ (Check daily limits)\n"
         "• /lang : ផ្លាស់ប្តូរភាសា (Change language)\n\n"
         "────────────────────────\n"
-        "🌾 <b>Welcome to Krova Agribot</b>\n"
+        "🌾 <b>Welcome to Krova Agri</b>\n"
         "🧪 Status: <b>Pilot Test Phase</b>\n\n"
         "Your smart agricultural assistant in Cambodia (CARDI / MAFF).\n\n"
         "<b>Key Features:</b>\n"
@@ -178,7 +178,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "• <b>Voice Questions:</b> Ask questions via voice note in Khmer, English, or French.\n"
         "• <b>Local Weather & Soil Insights:</b> Share your GPS location for tailored agricultural advice.\n\n"
         "────────────────────────\n"
-        "<i>(FR: Bienvenue sur Krova Agribot, votre assistant agronomique en phase de test pilote.)</i>"
+        "<i>(FR: Bienvenue sur Krova Agri, votre assistant agronomique en phase de test pilote.)</i>"
     )
     await update.message.reply_text(welcome_text, parse_mode="HTML")
 
@@ -621,5 +621,5 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.LOCATION, handle_location))
     application.add_handler(CallbackQueryHandler(handle_feedback))
     application.add_error_handler(error_handler)
-    print("Krova Agribot full RAG, vision, and voice stack is operational...")
+    print("Krova Agri full RAG, vision, and voice stack is operational...")
     application.run_polling(drop_pending_updates=True)

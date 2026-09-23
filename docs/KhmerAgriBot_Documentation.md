@@ -1,4 +1,4 @@
-# Krova Agribot — Technical and Operational Documentation
+# Krova Agri — Technical and Operational Documentation
 
 **Document version:** 1.0.0-PROD
 **Target infrastructure:** Debian/Ubuntu VM with a dedicated service user
@@ -9,7 +9,7 @@
 
 ## 1. Vision and operating context
 
-Krova Agribot is a resilient, auditable, multilingual agricultural assistant
+Krova Agri is a resilient, auditable, multilingual agricultural assistant
 for Cambodian smallholders and agricultural extension workers. It is designed
 for practical use through Telegram, including low-bandwidth text, voice notes,
 and crop photographs.

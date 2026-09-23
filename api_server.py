@@ -9,7 +9,7 @@ from config.database import DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, PROJECT_ROOT
 
 app = FastAPI(
     root_path="/agri-api",
-    title="Krova Agribot Backend API",
+    title="Krova Agri Backend API",
     version="1.1.0",
     description="Internal API for monitoring, agronomy moderation, and beta-tester management."
 )
@@ -252,7 +252,7 @@ def promote_corrected_to_rag(req: PromoteRagRequest, conn=Depends(get_db)):
     file_path = os.path.join(DROPZONE_DIR, file_name)
 
     doc_content = f"""# Protocole Agronomique Validé : {req.title}
-Source: Field Agronomy Moderation (Krova Agribot)
+Source: Field Agronomy Moderation (Krova Agri)
 Culture : {req.crop}
 Validé par : {record.get('reviewer_name', 'Agronome CARDI')}
 Date : {time.strftime('%Y-%m-%d')}

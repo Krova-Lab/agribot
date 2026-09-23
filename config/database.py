@@ -1,4 +1,4 @@
-"""Shared PostgreSQL configuration for all Krova Agribot services and tools."""
+"""Shared PostgreSQL configuration for all Krova Agri services and tools."""
 
 from __future__ import annotations
 

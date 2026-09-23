@@ -12,7 +12,7 @@ load_dotenv(os.path.expanduser("~/agribot/.env"))
 api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 
-app = FastAPI(title="Krova Agribot API")
+app = FastAPI(title="Krova Agri API")
 
 class ChatRequest(BaseModel):
     question: str

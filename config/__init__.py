@@ -1,1 +1,1 @@
-"""Runtime configuration helpers for Krova Agribot."""
+"""Runtime configuration helpers for Krova Agri."""

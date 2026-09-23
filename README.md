@@ -1,4 +1,4 @@
-# Krova Agribot
+# Krova Agri
 
 <p align="center">
   <strong>A practical, multilingual agricultural assistant for Cambodian farmers.</strong><br>
@@ -13,11 +13,11 @@
   <img src="https://img.shields.io/badge/RAG-PostgreSQL%20%2B%20pgvector-336791?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL and pgvector">
 </p>
 
-> Krova Agribot is an open-source agritech platform built to make useful, responsible agricultural guidance more accessible to Cambodian farmers and field technicians.
+> Krova Agri is an open-source agritech platform built to make useful, responsible agricultural guidance more accessible to Cambodian farmers and field technicians. The repository keeps `agribot` as its technical project name.
 
-## Why Krova Agribot
+## Why Krova Agri
 
-Smallholder farmers need answers that are understandable, local, and actionable — not generic chatbot content. Krova Agribot combines conversational access with a curated agricultural knowledge base and practical safety guardrails.
+Smallholder farmers need answers that are understandable, local, and actionable — not generic chatbot content. Krova Agri combines conversational access with a curated agricultural knowledge base and practical safety guardrails.
 
 - **Built for the field:** farmers can ask questions by text, voice message, or photo from Telegram.
 - **Multilingual by design:** Khmer-first interaction with French and English support.
@@ -29,7 +29,7 @@ Smallholder farmers need answers that are understandable, local, and actionable 
 
 ## Current status
 
-Krova Agribot is in an active pilot and hardening phase.
+Krova Agri is in an active pilot and hardening phase.
 
 | Area | Status |
 | --- | --- |
@@ -178,4 +178,4 @@ See [LICENSE](LICENSE).
 
 ## Contact and collaboration
 
-Krova Agribot is developed by **Krova Lab** as an open-source foundation for practical, responsible agricultural assistance in Cambodia.
+Krova Agri is developed by **Krova Lab** as an open-source foundation for practical, responsible agricultural assistance in Cambodia. `agribot` remains the repository and service identifier.

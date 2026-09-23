@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 from config.database import DB_HOST, DB_NAME, DB_USER, DB_PASSWORD
 
-print("--- [HEALTHCHECK] Starting Krova Agribot ecosystem checks ---")
+print("--- [HEALTHCHECK] Starting Krova Agri ecosystem checks ---")
 
 # 1. Check PostgreSQL & pgvector (correct system-table extname handling)
 try:

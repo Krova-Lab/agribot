@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 bin/watchdog_services.py
-Proactive monitoring for Krova Agribot services:
+Proactive monitoring for Krova Agri services:
 - krova-agribot.service (Telegram bot engine)
 - khmeragri-api.service (FastAPI REST API)
 - khmeragri-admin.service (admin bot & gateway)
@@ -136,7 +136,7 @@ def main():
         # Anti-spam: alert only if the previous state was 'ok' or more than 30 minutes have elapsed
         if state.get("last_status") == "ok" or (now - state.get("last_alert_time", 0) > 1800):
             msg = (
-                "🚨 <b>[Krova Agribot Watchdog] Incident detected</b>\n\n"
+                "🚨 <b>[Krova Agri Watchdog] Incident detected</b>\n\n"
                 + "\n".join(errors) +
                 f"\n\n⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                 "ℹ️ Automatic recovery attempts were triggered."
@@ -150,7 +150,7 @@ def main():
         # If recovering from an error state, send a recovery message
         if state.get("last_status") == "error":
             recovery_msg = (
-                "✅ <b>[Krova Agribot Watchdog] Full recovery</b>\n\n"
+                "✅ <b>[Krova Agri Watchdog] Full recovery</b>\n\n"
                 "All services (Telegram bot, REST API, and admin gateway) are active and healthy again.\n"
                 f"⏰ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}"
             )

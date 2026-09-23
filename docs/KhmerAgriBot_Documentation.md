@@ -74,12 +74,19 @@ The main tables are:
 
 - `interactions` — user input metadata, response timing, model, confidence,
   location, and feedback.
-- `rag_documents` — source title, category, content, and embedding vector.
+- `rag_documents` — newly ingested documents with source title, category,
+  content, embedding vector, and review status.
+- `knowledge_base` — historical vectorized chunks retained from the earlier
+  ingestion pipeline.
 - user and moderation tables — access control, review status, and operational
   feedback.
 
-The running bot retrieves context from `rag_documents` through
-`rag_search.py`. Embeddings are generated with `models/gemini-embedding-001`.
+The running bot retrieves context from both tables through `rag_search.py`,
+without re-embedding the historical corpus. The historical `agri_hf_` batch
+is temporarily excluded from retrieval because spot checks found unrelated
+content; the records remain in the database for review. New entries are
+retrieved only when approved. Embeddings are generated with
+`models/gemini-embedding-001`.
 
 ## 5. Secure ingestion workflow
 

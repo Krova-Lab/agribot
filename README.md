@@ -69,7 +69,7 @@ flowchart LR
 
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
 - `llm_adapter.py` — inference adapter with a configurable default model and multimodal input support.
-- `rag_search.py` — semantic retrieval against the local `rag_documents` table.
+- `rag_search.py` — semantic retrieval across new `rag_documents` entries and the historical `knowledge_base` corpus.
 - `ingest_files.py` / `ingest_daemon.py` — validation, chunking, embedding, and ingestion of approved documents.
 - `api_server.py` — REST API for telemetry, moderation, and controlled promotion of verified knowledge into the RAG pipeline.
 - `config/` — prompt loading and the community-safe prompt example. Private production prompts are intentionally excluded from Git.
@@ -80,6 +80,13 @@ flowchart LR
 - **Conversation, vision, and voice interpretation:** `gemini-3.6-flash`
 - **Semantic embeddings:** `models/gemini-embedding-001`
 - **Vector store:** PostgreSQL 16 with `pgvector`
+
+Historical vectors remain in `knowledge_base` and are searched without re-embedding.
+New ingestion writes to `rag_documents`. Retrieval excludes the historical
+`agri_hf_` export pending a source-quality review: spot checks found unrelated
+religious, historical, and language-course text in that batch. It also skips
+known unverified legacy titles and non-approved new entries. The old corpus is
+not deleted or silently marked as approved.
 
 ## Data and safety boundaries
 

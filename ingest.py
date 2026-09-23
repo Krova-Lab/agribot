@@ -57,9 +57,9 @@ def ingest_file(filepath):
             },
         }
         
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=30)
         if response.status_code != 200:
-            print(f"Google API error: {response.status_code} - {response.text}")
+            print(f"Google API error: HTTP {response.status_code}")
             continue
             
         data = response.json()

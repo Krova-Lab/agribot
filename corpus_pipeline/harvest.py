@@ -8,13 +8,13 @@ from pypdf import PdfReader
 import trafilatura
 
 URLS = [
-    'http://www.knowledgebank.irri.org/step-by-step-production/pre-planting',
-    'http://www.knowledgebank.irri.org/step-by-step-production/growth/water-management',
-    'http://www.knowledgebank.irri.org/step-by-step-production/growth/soil-fertility',
-    'http://www.knowledgebank.irri.org/step-by-step-production/growth/pests-and-diseases',
-    'http://www.knowledgebank.irri.org/step-by-step-production/postharvest',
-    'http://www.knowledgebank.irri.org/training/fact-sheets/pest-management/diseases',
-    'http://www.knowledgebank.irri.org/training/fact-sheets/pest-management/insects',
+    'https://www.knowledgebank.irri.org/step-by-step-production/pre-planting',
+    'https://www.knowledgebank.irri.org/step-by-step-production/growth/water-management',
+    'https://www.knowledgebank.irri.org/step-by-step-production/growth/soil-fertility',
+    'https://www.knowledgebank.irri.org/step-by-step-production/growth/pests-and-diseases',
+    'https://www.knowledgebank.irri.org/step-by-step-production/postharvest',
+    'https://www.knowledgebank.irri.org/training/fact-sheets/pest-management/diseases',
+    'https://www.knowledgebank.irri.org/training/fact-sheets/pest-management/insects',
     'https://ciat.cgiar.org/wp-content/uploads/2020/05/Cassava-diseases-Southeast-Asia.pdf',
     'https://ciat.cgiar.org/wp-content/uploads/2020/05/Pest-and-disease-management-in-cassava.pdf'
 ]
@@ -96,6 +96,6 @@ if __name__ == "__main__":
         "Accept": "application/json",
         "Accept-Language": "en-US,en;q=0.9"
     }
-    with httpx.Client(verify=False, headers=headers) as client:
+    with httpx.Client(verify=True, headers=headers) as client:
         for url in URLS:
             process_url(client, url)

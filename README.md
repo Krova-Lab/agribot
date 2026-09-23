@@ -1,5 +1,7 @@
 # Krova Agri
 
+[![CI](https://github.com/Krova-Lab/agribot/actions/workflows/ci.yml/badge.svg)](https://github.com/Krova-Lab/agribot/actions/workflows/ci.yml)
+
 <p align="center">
   <strong>A practical, multilingual agricultural assistant for Cambodian farmers.</strong><br>
   Delivered through Telegram. Grounded in local context. Designed for real field conditions.
@@ -171,6 +173,8 @@ Contributions are welcome, especially in:
 - safe multimodal interaction design
 
 Please avoid committing API keys, user data, RAG documents, media, database dumps, or private prompt files. See `.gitignore` and the public prompt example before opening a pull request.
+
+Every push and pull request runs the public CI pipeline. It compiles the Python sources, runs dependency-light smoke tests, and builds the Docker image. CodeQL remains enabled separately for security analysis; the pipeline intentionally duplicates local and private-repository checks.
 
 ## License
 

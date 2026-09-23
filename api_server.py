@@ -1,4 +1,4 @@
-import os
+import secrets
 import time
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Depends
@@ -6,7 +6,6 @@ from pydantic import BaseModel
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config.database import DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, PROJECT_ROOT
-from config.path_utils import safe_slug
 
 app = FastAPI(
     root_path="/agri-api",
@@ -247,14 +246,9 @@ def promote_corrected_to_rag(req: PromoteRagRequest, conn=Depends(get_db)):
         raise HTTPException(status_code=404, detail="Aucun diagnostic corrigé trouvé pour cette interaction.")
 
     # Create a Markdown record in rag_dropzone
-    clean_title = safe_slug(req.title.lower(), "diagnostic")
-    clean_crop = safe_slug(req.crop.lower(), "general")
-    ts = int(time.time())
-    file_name = f"cardi_fiche_terrain_{clean_crop}_{clean_title}_{ts}.md"
+    file_name = f"cardi_fiche_terrain_{secrets.token_hex(16)}.md"
     dropzone_root = DROPZONE_DIR.resolve()
     file_path = (dropzone_root / file_name).resolve()
-    if dropzone_root not in file_path.parents:
-        raise HTTPException(status_code=400, detail="Nom de fichier invalide.")
 
     doc_content = f"""# Protocole Agronomique Validé : {req.title}
 Source: Field Agronomy Moderation (Krova Agri)

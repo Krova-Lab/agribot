@@ -3,7 +3,7 @@
 import unittest
 
 from config.prompt_loader import load_prompts, render_prompt
-from location_context import build_location_context
+from location_context import build_location_context, soil_source_for_audit
 from telegram_format import to_telegram_plain_text
 from ingest_rag import ingest as legacy_ingest
 
@@ -32,6 +32,7 @@ class PilotSafeguardTests(unittest.TestCase):
         self.assertIn("Unavailable", weather)
         self.assertIn("Cambodia", region)
         self.assertNotIn("Phnom Penh", region)
+        self.assertIsNone(soil_source_for_audit(soil))
 
     def test_shared_coordinates_enable_local_data(self):
         calls = []
@@ -48,6 +49,11 @@ class PilotSafeguardTests(unittest.TestCase):
         self.assertEqual(soil, {"ok": True})
         self.assertEqual(weather, {"ok": True})
         self.assertIn("user-shared", region)
+
+    def test_soil_audit_source_requires_structured_data(self):
+        self.assertEqual(soil_source_for_audit({"source": "SoilGrids-Live"}), "SoilGrids-Live")
+        self.assertIsNone(soil_source_for_audit({"source": None}))
+        self.assertIsNone(soil_source_for_audit("Unavailable"))
 
     def test_generated_markdown_is_not_shown_raw(self):
         answer = "### **Rice advice**\n- Check `water` level.\n- See https://example.org/rice_guide"

@@ -30,7 +30,7 @@ from api_clients import get_soil_data_with_fallback, identify_plant_plantnet
 from agent_workflow import get_weather_history
 from rag_search import search_rag
 from telegram_format import to_telegram_plain_text
-from location_context import build_location_context
+from location_context import build_location_context, soil_source_for_audit
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DB_PARAMS = get_db_params()
@@ -497,7 +497,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             media_file_id, media_file_size, lang,
             lat if telegram_id in USER_LOCATIONS else None,
             lon if telegram_id in USER_LOCATIONS else None,
-            rag_ms, llm_ms, total_ms, soil.get("source"), model_used, 90
+            rag_ms, llm_ms, total_ms, soil_source_for_audit(soil), model_used, 90
         ))
         interaction_id = cur.fetchone()[0]
         conn.commit()

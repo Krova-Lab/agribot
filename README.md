@@ -54,13 +54,14 @@ flowchart LR
     Telegram --> Router[Input & language routing]
     Router --> Media{Text, voice, or photo}
     Media --> Context[Soil, weather & location context]
-    Media --> Vision[Photo / Pl@ntNet analysis]
+    Media --> Vision[Voice transcription or photo observation]
+    Vision --> Retrieval
     Context --> Retrieval[RAG retrieval]
     Retrieval --> PG[(PostgreSQL + pgvector)]
     Retrieval --> Prompt[Context-aware prompt assembly]
     Vision --> Prompt
-    Prompt --> Gemini[Gemini multimodal inference]
-    Gemini --> Reply[Khmer / French / English response]
+    Prompt --> Models[Task-specific Gemini / Azure routing]
+    Models --> Reply[Khmer / French / English response]
     Reply --> Telegram
     Telegram --> Audit[Telemetry & moderation API]
 ```
@@ -68,7 +69,8 @@ flowchart LR
 ### Main components
 
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
-- `llm_adapter.py` — inference adapter with a configurable default model and multimodal input support.
+- `llm_adapter.py` — task-specific Gemini/Azure routing and bounded model failover.
+- `media_pipeline.py` — voice transcription or cautious image observation before retrieval.
 - `rag_search.py` — semantic retrieval across new `rag_documents` entries and the historical `knowledge_base` corpus.
 - `ingest_files.py` / `ingest_daemon.py` — validation, chunking, embedding, and ingestion of approved documents.
 - `api_server.py` — REST API for telemetry, moderation, and controlled promotion of verified knowledge into the RAG pipeline.
@@ -77,9 +79,12 @@ flowchart LR
 
 ### Models
 
-- **Conversation, vision, and voice interpretation:** `gemini-3.6-flash`
+- **Conversation and vision:** `gemini-3.6-flash` by default, with the verified Azure `gpt-4o` deployment as a configurable backup.
+- **Voice transcription:** `gemini-3.6-flash` by default; an Azure transcription deployment can be added after Khmer speech evaluation.
 - **Semantic embeddings:** `models/gemini-embedding-001`
 - **Vector store:** PostgreSQL 16 with `pgvector`
+
+Text, voice, and photo now have separate inference routes. Speech is transcribed and photos are described before vector retrieval; the response model receives the same retrieved context regardless of provider. Embeddings remain on Gemini so existing vectors stay compatible. Route configuration and evaluation instructions are in [docs/model-routing.md](docs/model-routing.md).
 
 Historical vectors remain in `knowledge_base` and are searched without re-embedding.
 New ingestion writes to `rag_documents`. Retrieval excludes the historical
@@ -109,6 +114,7 @@ If private prompts are unavailable, the application falls back to the community 
 - PostgreSQL 16 with `pgvector`
 - Telegram bot token
 - Gemini API key
+- Optional Azure Foundry `/openai/v1` endpoint and API key for the backup model
 - Optional: Pl@ntNet API key for botanical identification
 
 ### Install

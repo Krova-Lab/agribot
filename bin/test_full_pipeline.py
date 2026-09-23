@@ -52,9 +52,10 @@ def run_e2e_suite():
 
         vis_t0 = time.time()
         vis_resp, vis_model = ask_llm(
-            "Diagnostique cette image de plante. Si l'image n'est pas claire, indique-le poliment.", 
+            "Describe only what is visible. If this image is unclear, say so.",
             media_bytes=img_bytes, 
-            mime_type="image/jpeg"
+            mime_type="image/jpeg",
+            task="vision",
         )
         vis_ms = int((time.time() - vis_t0) * 1000)
         img_ok = bool(vis_resp and len(vis_resp) > 0)
@@ -70,9 +71,10 @@ def run_e2e_suite():
 
         aud_t0 = time.time()
         aud_resp, aud_model = ask_llm(
-            "Écoute cet audio. Si aucun son intelligible n'est présent, indique-le.",
+            "Transcribe intelligible speech only. If there is none, say 'No speech'.",
             media_bytes=audio_bytes,
-            mime_type="audio/ogg"
+            mime_type="audio/ogg",
+            task="transcription",
         )
         aud_ms = int((time.time() - aud_t0) * 1000)
         aud_ok = bool(aud_resp and len(aud_resp) > 0)

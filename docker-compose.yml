@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: khmeragribot-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:?DB_NAME must be set}
+      POSTGRES_USER: ${DB_USER:?DB_USER must be set}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:?DB_USER must be set} -d ${DB_NAME:?DB_NAME must be set}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    container_name: khmeragribot-bot
+    restart: unless-stopped
+    command: python bot_telegram.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    volumes:
+      - ./rag_dropzone:/app/rag_dropzone
+      - ./rag_processed:/app/rag_processed
+      - ./rag_rejected:/app/rag_rejected
+
+  api:
+    build: .
+    container_name: khmeragribot-api
+    restart: unless-stopped
+    command: uvicorn api_server:app --host 0.0.0.0 --port 8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+
+volumes:
+  pgdata:

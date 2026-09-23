@@ -1,0 +1,7 @@
+"""Known unverified legacy RAG entries that must not be retrieved."""
+
+LEGACY_UNVERIFIED_TITLES = (
+    "CARDI - Toxicité H2S et asphyxie racinaire du riz",
+    "MAFF - Gestion post-récolte et maladies du manioc",
+    "CARDI - Carence en Azote et Potassium sur sols sableux (Prey Veng / Kampong Chhnang)",
+)

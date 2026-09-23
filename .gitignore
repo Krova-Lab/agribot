@@ -1,0 +1,68 @@
+# Secrets & Environnement
+.env
+.env.*
+!.env.example
+config/prompts.json
+*.pem
+*.key
+
+# Python & Venv
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# RAG Data & Dropzones locales
+data_ingest/
+rag_dropzone/
+rag_processed/
+rag_rejected/
+rag_failed/
+image_cache/
+audio_cache/
+!rag_dropzone/.gitkeep
+!rag_processed/.gitkeep
+!rag_rejected/.gitkeep
+
+# Logs & Télémétrie locale
+logs/
+*.log
+cache/
+memories/
+runtime/
+sessions/
+skills/
+state/
+kanban/
+cron/
+platforms/
+.curator_backups/
+backup/
+backups/
+*.tar.gz
+*.sql
+*.dump
+*.json
+*.lock
+*.db*
+*.sqlite
+*.yaml
+restore_tmp/
+.hermes/
+
+# The public example is deliberately tracked; all private prompts remain local.
+!config/prompts.example.json
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Runtime artifacts & local agent telemetry
+.clean_shutdown
+.tirith-*
+.update_check
+install_id
+models_dev_cache*
+save/

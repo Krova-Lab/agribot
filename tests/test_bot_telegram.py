@@ -68,7 +68,7 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
                  status="ok",
                  sources=(SimpleNamespace(
                      title="IRRI rice guide", content="Yellow leaves guidance", url="https://irri.org/rice",
-                     publisher="IRRI", publication_date=None, license="CC BY", distance=0.1,
+                     publisher="IRRI", publication_date=None, license="CC BY", source_locator="Chapter 2, p. 8", distance=0.1,
                      trace=lambda rank: {"document_id": 1, "rank": rank, "url": "https://irri.org/rice"},
                  ),),
                  trace=lambda: {"status": "ok", "sources": [{"document_id": 1, "url": "https://irri.org/rice"}]},
@@ -94,11 +94,15 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         prompt = llm.call_args.args[0]
         self.assertIn("Cambodia; no specific location confirmed", prompt)
         self.assertIn("[RAG SOURCE 1] IRRI rice guide", prompt)
+        self.assertIn("Preserve exact values from cited passages", prompt)
+        self.assertIn("Never average, widen, narrow, or silently merge conflicting values", prompt)
+        self.assertIn("Treat publication date as evidence quality, not decoration", prompt)
         self.assertIn("Google Search found a Cambodia-relevant source", prompt)
         self.assertIn("Missing GPS or a missing province must never block", prompt)
         self.assertEqual(message.reply_text.await_count, 2)
         self.assertIn("Réponse générale pour le Cambodge", message.reply_text.await_args.args[0])
         self.assertIn("https://irri.org/rice", message.reply_text.await_args.args[0])
+        self.assertIn("IRRI rice guide (Chapter 2, p. 8)", message.reply_text.await_args.args[0])
         self.assertIn("https://irri.org/water", message.reply_text.await_args.args[0])
         audit_values = audit_cursor.execute.call_args.args[1]
         trace = json.loads(audit_values[-1])

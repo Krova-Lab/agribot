@@ -23,7 +23,7 @@ class RagSearchTests(unittest.TestCase):
         connection = MagicMock()
         connection.cursor.return_value.fetchall.return_value = [
             ("rag_documents", 7, "IRRI water guide", "Keep the field shallow after transplanting.",
-             "https://irri.org/water", "IRRI", date(2024, 1, 1), "CC BY 4.0", "abc123", 0.12),
+             "https://irri.org/water", "IRRI", date(2024, 1, 1), "CC BY 4.0", "Section 3, p. 12", "abc123", 0.12),
         ]
 
         with patch.object(rag_search, "client", SimpleNamespace(models=model)):
@@ -38,8 +38,11 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(params, ([0.1, 0.2], 3))
         self.assertEqual(retrieval.status, "ok")
         self.assertEqual(retrieval.sources[0].url, "https://irri.org/water")
+        self.assertEqual(retrieval.sources[0].source_locator, "Section 3, p. 12")
         self.assertEqual(retrieval.sources[0].trace(1)["content_sha256"], "abc123")
+        self.assertEqual(retrieval.sources[0].trace(1)["source_locator"], "Section 3, p. 12")
         self.assertIn("https://irri.org/water", rag_search.format_rag_context(retrieval.sources))
+        self.assertIn("Page/section: Section 3, p. 12", rag_search.format_rag_context(retrieval.sources))
         connection.close.assert_called_once()
 
     def test_search_can_surface_errors_for_integration_checks(self):

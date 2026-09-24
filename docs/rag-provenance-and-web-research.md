@@ -47,7 +47,11 @@ RAG retrieval is limited to rows with `audit_status = 'approved'`,
 `provenance_status = 'verified'`, and a non-empty `source_url`. Each retrieved
 chunk carries its database ID, corpus, content hash, source title, URL, publisher,
 publication date, licence, and vector distance into the interaction audit trace.
-The source reference is also included in the Telegram reply.
+The source reference is also included in the Telegram reply. PDF extraction keeps
+page boundaries and records the one-based PDF page (or page range) for each chunk;
+an optional sidecar locator such as a chapter or printed page range is retained
+alongside it. For non-paginated sources, supply the best verifiable section in the
+sidecar rather than relying on the document title alone.
 
 For substantive agriculture questions, the bot separately calls Gemini with
 Google Search grounding enabled, even when Azure is configured as the response
@@ -61,6 +65,20 @@ and provider usage/cost.
 Retrieved passages and web page contents are untrusted evidence, not bot
 instructions. The response must distinguish verified evidence from provisional
 guidance and must not stretch a source beyond the claims its passage supports.
+The bot compares exact passages and web-grounded claims, preserves quoted values,
+and must not silently combine conflicting numbers or recommendations. When
+credible sources disagree and no source clearly applies better, it should state
+the conflict and uncertainty rather than give a falsely precise answer.
+
+Publication date is part of evidence assessment, not only citation metadata. Older
+documents may remain useful for stable agronomic methods, definitions, or historical
+context, but they are not automatically current. The bot must apply additional
+caution to time-sensitive claims such as climate and weather conditions, pollution,
+pest and disease pressure, regulations, product registrations and approvals, prices,
+and public-health guidance. For these claims it should seek recent or current
+confirmation, and disclose when the available source is old or undated. An old
+source is not discarded automatically: its relevance depends on the claim being
+made and on whether a newer source or grounded Web result supersedes it.
 
 ## Database deployment
 

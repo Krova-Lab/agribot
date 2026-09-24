@@ -28,6 +28,7 @@ class RetrievedSource:
     publisher: str | None
     publication_date: str | None
     license: str | None
+    source_locator: str | None
     content_sha256: str | None
     distance: float
 
@@ -69,7 +70,7 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
             WITH candidates AS (
                 SELECT 'rag_documents'::text AS corpus, id, source_title, content,
                        source_url, source_publisher, source_publication_date,
-                       source_license, content_sha256, embedding
+                       source_license, source_locator, content_sha256, embedding
                 FROM rag_documents
                 WHERE embedding IS NOT NULL
                   AND audit_status = 'approved'
@@ -78,7 +79,7 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
                 UNION ALL
                 SELECT 'knowledge_base'::text AS corpus, id, source_title, content,
                        source_url, source_publisher, source_publication_date,
-                       source_license, content_sha256, embedding
+                       source_license, source_locator, content_sha256, embedding
                 FROM knowledge_base AS kb
                 WHERE embedding IS NOT NULL
                   AND audit_status = 'approved'
@@ -91,7 +92,7 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
             )
             SELECT corpus, id, source_title, content, source_url,
                    source_publisher, source_publication_date, source_license,
-                   content_sha256, embedding <=> %s::vector AS distance
+                   source_locator, content_sha256, embedding <=> %s::vector AS distance
             FROM candidates
             ORDER BY distance ASC
             LIMIT %s;
@@ -109,8 +110,9 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
                 publisher=row[5],
                 publication_date=row[6].isoformat() if row[6] else None,
                 license=row[7],
-                content_sha256=row[8] or hashlib.sha256((row[3] or "").encode("utf-8")).hexdigest(),
-                distance=float(row[9]),
+                source_locator=row[8],
+                content_sha256=row[9] or hashlib.sha256((row[3] or "").encode("utf-8")).hexdigest(),
+                distance=float(row[10]),
             )
             for row in rows
         )
@@ -133,6 +135,7 @@ def format_rag_context(sources: list[RetrievedSource]) -> str:
         f"[RAG SOURCE {rank}] {source.title}\n"
         f"Publisher: {source.publisher or 'Not recorded'}\n"
         f"Published: {source.publication_date or 'Not recorded'}\n"
+        f"Page/section: {source.source_locator or 'Not recorded'}\n"
         f"URL: {source.url}\n"
         f"Passage: {source.content}"
         for rank, source in enumerate(sources, 1)

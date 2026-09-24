@@ -69,18 +69,19 @@ def perform_ocr_image(img_obj) -> str:
             print(f"❌ OCR fallback error: {e2}")
             return ""
 
-def extract_text_from_file(filepath: str) -> str:
+def extract_pages_from_file(filepath: str) -> list[str]:
+    """Extract per-page text so PDF chunks can retain a useful source locator."""
     ext = os.path.splitext(filepath)[1].lower()
-    text = ""
+    pages: list[str] = []
 
     # 1. Plain text / Markdown files
     if ext in [".txt", ".md"]:
         try:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
-                text = f.read()
+                pages = [f.read()]
         except Exception as e:
             print(f"Text read error for {filepath}: {e}")
-            return ""
+            return []
 
     # 2. Word documents (.docx, .doc)
     elif ext in [".docx", ".doc"]:
@@ -88,52 +89,51 @@ def extract_text_from_file(filepath: str) -> str:
             try:
                 doc = docx.Document(filepath)
                 full_text = [p.text for p in doc.paragraphs if p.text]
-                text = "\n".join(full_text)
+                pages = ["\n".join(full_text)]
             except Exception as e:
                 print(f"DOCX read error for {filepath}: {e}")
-                text = ""
+                pages = []
 
     # 3. Images (.jpg, .jpeg, .png, .bmp, .tiff, .webp) -> direct OCR
     elif ext in [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"]:
         print(f"📷 Image file detected ({ext}). Starting Tesseract OCR...")
         try:
             with Image.open(filepath) as img:
-                text = perform_ocr_image(img)
+                pages = [perform_ocr_image(img)]
         except Exception as e:
             print(f"Image read/OCR error for {filepath}: {e}")
-            return ""
+            return []
 
     # 4. PDF files -> native extraction, then OCR fallback if under 150 characters
     elif ext == ".pdf":
         try:
             reader = PdfReader(filepath)
             for page in reader.pages:
-                t = page.extract_text()
-                if t:
-                    text += t + "\n"
+                pages.append(sanitize_text(page.extract_text() or ""))
         except Exception as e:
             print(f"Native PDF read error for {filepath}: {e}")
-            text = ""
+            pages = []
 
-        # Sanitise the natively extracted text
-        text = sanitize_text(text)
+        # Sanitise extracted text without discarding PDF page boundaries.
+        pages = [sanitize_text(page) for page in pages]
 
         # Use OCR fallback if the native text is too short (< 150 characters)
-        if len(text.strip()) < 150:
-            print(f"📄 Native PDF text insufficient ({len(text.strip())} chars < 150). Falling back to page-by-page OCR (pdf2image + Tesseract)...")
+        native_length = len("\n".join(pages).strip())
+        if native_length < 150:
+            print(f"📄 Native PDF text insufficient ({native_length} chars < 150). Falling back to page-by-page OCR (pdf2image + Tesseract)...")
             try:
                 images = pdf2image.convert_from_path(filepath)
-                ocr_text = ""
-                for page_idx, img in enumerate(images, 1):
-                    p_text = perform_ocr_image(img)
-                    if p_text:
-                        ocr_text += p_text + "\n"
-                text = ocr_text
+                pages = [perform_ocr_image(img) for img in images]
             except Exception as e:
                 print(f"PDF conversion/OCR error for {filepath}: {e}")
 
-    # Final sanitisation to remove every null byte (\x00)
-    return sanitize_text(text).strip()
+    # Final sanitisation to remove every null byte (\x00) without losing page boundaries.
+    return [sanitize_text(page).strip() for page in pages]
+
+
+def extract_text_from_file(filepath: str) -> str:
+    """Backward-compatible plain-text extraction interface."""
+    return "\n".join(extract_pages_from_file(filepath)).strip()
 
 def validate_document(text: str, filename: str) -> tuple[bool, str]:
     cleaned_text = sanitize_text(text)
@@ -174,6 +174,52 @@ def chunk_text(text: str, chunk_size: int = 1200, overlap: int = 150):
         start += (chunk_size - overlap)
     return chunks
 
+
+def chunk_text_with_offsets(text: str, chunk_size: int = 1200,
+                            overlap: int = 150) -> list[tuple[str, int]]:
+    """Return text chunks with their starting character offsets."""
+    text = sanitize_text(text)
+    chunks = []
+    start = 0
+    while start < len(text):
+        raw_chunk = text[start:start + chunk_size]
+        leading_trim = len(raw_chunk) - len(raw_chunk.lstrip())
+        chunk = sanitize_text(raw_chunk.strip())
+        if chunk:
+            chunks.append((chunk, start + leading_trim))
+        start += chunk_size - overlap
+    return chunks
+
+
+def chunk_pages(pages: list[str], base_locator: str | None = None,
+                chunk_size: int = 1200, overlap: int = 150) -> list[tuple[str, str | None]]:
+    """Chunk a document while retaining page-level PDF provenance."""
+    text = "\n".join(pages)
+    page_ranges = []
+    offset = 0
+    for page_number, page in enumerate(pages, 1):
+        page_start = offset
+        page_end = page_start + len(page)
+        if page:
+            page_ranges.append((page_start, page_end, page_number))
+        offset = page_end + 1
+
+    located_chunks = []
+    for chunk, start in chunk_text_with_offsets(text, chunk_size, overlap):
+        end = start + len(chunk)
+        page_numbers = [number for page_start, page_end, number in page_ranges
+                        if start < page_end and end > page_start]
+        if page_numbers:
+            page_locator = (
+                f"PDF p. {page_numbers[0]}" if len(page_numbers) == 1
+                else f"PDF pp. {page_numbers[0]}–{page_numbers[-1]}"
+            )
+            locator = f"{base_locator}; {page_locator}" if base_locator else page_locator
+        else:
+            locator = base_locator
+        located_chunks.append((chunk, locator))
+    return located_chunks
+
 def get_embedding(text: str):
     text_clean = sanitize_text(text)
     res = client.models.embed_content(
@@ -196,7 +242,8 @@ def ingest_file(filepath: str):
         return
     source_title = metadata.get("source_title") or source_title
 
-    text = extract_text_from_file(filepath)
+    pages = extract_pages_from_file(filepath)
+    text = "\n".join(pages).strip()
     is_valid, reason = validate_document(text, filename)
 
     if not is_valid:
@@ -222,12 +269,12 @@ def ingest_file(filepath: str):
             conn.close()
             return
 
-        chunks = chunk_text(text)
+        chunks = chunk_pages(pages, metadata.get("source_locator"))
         print(f"📄 Validation passed ({len(chunks)} chunks). Generating embeddings...")
 
         inserted_count = 0
 
-        for idx, chunk in enumerate(chunks):
+        for idx, (chunk, chunk_locator) in enumerate(chunks):
             chunk_clean = sanitize_text(chunk)
             emb = get_embedding(chunk_clean)
             cursor.execute(
@@ -244,7 +291,7 @@ def ingest_file(filepath: str):
                     sha256_hash, source_title, "ingested", chunk_clean, emb,
                     metadata.get("source_url"), metadata.get("source_publisher"),
                     metadata.get("source_publication_date"), metadata.get("source_license"),
-                    metadata.get("source_locator"), hashlib.sha256(chunk_clean.encode("utf-8")).hexdigest(),
+                    chunk_locator, hashlib.sha256(chunk_clean.encode("utf-8")).hexdigest(),
                 )
             )
             inserted_count += 1

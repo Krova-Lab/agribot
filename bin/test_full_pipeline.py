@@ -24,7 +24,7 @@ def log_test(step, success, details=""):
 
 def run_e2e_suite():
     print("==================================================")
-    print("   KROVA AGRI AUTOMATED END-TO-END TEST   ")
+    print("   KROVA AGRI INTEGRATION SMOKE TEST   ")
     print("==================================================")
     all_ok = True
 
@@ -32,19 +32,31 @@ def run_e2e_suite():
     allowed = access_control.is_allowed_access(TESTER_TELEGRAM_ID)
     all_ok &= log_test("ACCESS CONTROL", allowed, f"Testeur {TESTER_TELEGRAM_ID} autorisé: {allowed}")
 
-    # 2. RAG & pgvector (execute the SQL query)
+    # 2. Text generation route
+    try:
+        response_t0 = time.time()
+        response, response_model = ask_llm(
+            "Reply with exactly this token and nothing else: KROVA_AGRI_SMOKE_OK",
+            task="response",
+        )
+        response_ms = int((time.time() - response_t0) * 1000)
+        response_ok = bool(response and "KROVA_AGRI_SMOKE_OK" in response.upper())
+        all_ok &= log_test("TEXT GENERATION", response_ok, f"Route {response_model} en {response_ms} ms")
+    except Exception as e:
+        all_ok &= log_test("TEXT GENERATION", False, f"Inference error: {e}")
+
+    # 3. RAG & pgvector (execute the SQL query)
     try:
         rag_t0 = time.time()
-        rag_res = search_rag("symptômes mosaïque manioc SLCMV", limit=2)
+        rag_res = search_rag("symptômes mosaïque manioc SLCMV", limit=2, raise_on_error=True)
         rag_ms = int((time.time() - rag_t0) * 1000)
-        # Success if the search runs without an SQL error, even when the RAG corpus is empty
-        rag_status = (rag_res is not None)
-        count_docs = len(rag_res) if rag_res else 0
-        all_ok &= log_test("RAG / PGVECTOR", rag_status, f"Requête pgvector exécutée en {rag_ms} ms (docs: {count_docs})")
+        # An empty corpus is allowed in CI; database or embedding failures must still fail the check.
+        count_docs = len(rag_res.split("\n\n")) if rag_res else 0
+        all_ok &= log_test("RAG / PGVECTOR", True, f"Recherche exécutée en {rag_ms} ms (documents récupérés: {count_docs})")
     except Exception as e:
         all_ok &= log_test("RAG / PGVECTOR", False, f"SQL/pgvector error: {e}")
 
-    # 3. Multimodal vision (JPEG generation without Pillow via ffmpeg)
+    # 4. Multimodal vision (synthetic JPEG connectivity check)
     try:
         cmd_img = ["ffmpeg", "-y", "-f", "lavfi", "-i", "color=c=green:s=100x100:d=1", "-frames:v", "1", "-f", "image2", "-"]
         proc_img = subprocess.Popen(cmd_img, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -63,7 +75,7 @@ def run_e2e_suite():
     except Exception as e:
         all_ok &= log_test("MULTIMODAL VISION", False, f"Image pipeline error: {e}")
 
-    # 4. Multimodal audio (OGG Opus via ffmpeg)
+    # 5. Multimodal audio (synthetic OGG Opus connectivity check)
     try:
         cmd_aud = ["ffmpeg", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:duration=1", "-c:a", "libopus", "-f", "ogg", "-"]
         proc_aud = subprocess.Popen(cmd_aud, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -82,7 +94,7 @@ def run_e2e_suite():
     except Exception as e:
         all_ok &= log_test("MULTIMODAL AUDIO", False, f"Audio pipeline error: {e}")
 
-    # 5. PostgreSQL persistence & voting mechanism
+    # 6. PostgreSQL persistence & voting mechanism
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
@@ -119,7 +131,8 @@ def run_e2e_suite():
 
     print("==================================================")
     if all_ok:
-        print("🎉 BILAN : 100% DES PIPELINES DE PRODUCTION SONT VALIDÉS")
+        print("✅ BILAN : tous les contrôles d'intégration configurés ont réussi")
+        print("Ce smoke test vérifie la connectivité, pas la qualité agronomique des réponses.")
     else:
         print("⚠️ BILAN : CERTAINS COMPOSANTS ONT ÉCHOUÉ")
     print("==================================================")

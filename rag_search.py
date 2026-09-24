@@ -10,7 +10,7 @@ api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 DB_PARAMS = get_db_params()
 
-def search_rag(query: str, limit: int = 2) -> str:
+def search_rag(query: str, limit: int = 2, *, raise_on_error: bool = False) -> str:
     if not query or query == "[Photo sent]":
         return ""
     try:
@@ -59,6 +59,8 @@ def search_rag(query: str, limit: int = 2) -> str:
         return "\n\n".join([f"[{r[0]}] {r[1]}" for r in rows])
     except Exception as e:
         print(f"[RAG SEARCH ERROR] {e}")
+        if raise_on_error:
+            raise
         return ""
 
 if __name__ == "__main__":

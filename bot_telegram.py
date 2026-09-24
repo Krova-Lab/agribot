@@ -24,6 +24,7 @@ from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, Messa
 from dotenv import load_dotenv
 
 from llm_adapter import ask_llm
+from language_detection import detect_ui_lang
 from media_pipeline import prepare_input, InputInterpretationError
 from config.prompt_loader import load_prompts
 from config.database import get_db_params
@@ -92,30 +93,6 @@ for h in logging.getLogger().handlers:
 
 logger = logging.getLogger(__name__)
 PROMPTS = load_prompts()
-
-def detect_ui_lang(text: str) -> str:
-    if not text:
-        return "kh"
-    # Khmer alphabet detected
-    if re.search(r"[\u1780-\u17FF]", text):
-        return "kh"
-
-    lower_t = text.lower().strip()
-
-    # French-specific markers
-    has_fr_accents = bool(re.search(r"[éèêëàâîïôùûç]", lower_t))
-    fr_stop_words = {"le", "la", "les", "des", "du", "un", "une", "dans", "sur", "pour", "avec", "est", "c'est", "que", "qui"}
-    fr_keywords = {"bonjour", "salut", "comment", "pourquoi", "maladie", "feuille", "riz", "culture", "engrais", "parasite"}
-
-    words = set(re.findall(r"\b\w+\b", lower_t))
-    if has_fr_accents or words.intersection(fr_keywords) or words.intersection(fr_stop_words):
-        return "fr"
-
-    # Latin alphabet without French-specific markers -> English
-    if re.search(r"[a-zA-Z]", text):
-        return "en"
-
-    return "kh"
 
 BUTTON_TEXTS = {
     "kh": {"pos": "👍 ត្រឹមត្រូវ", "neg": "👎 មិនត្រឹមត្រូវ"},

@@ -65,6 +65,8 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
              )) as location, \
              patch.object(bot_telegram, "search_rag", return_value="[rice] Yellow leaves guidance") as rag, \
              patch.object(bot_telegram, "ask_llm", return_value=("Réponse générale pour le Cambodge", "gemini:test")) as llm, \
+             patch.object(bot_telegram, "InlineKeyboardButton", return_value=object()), \
+             patch.object(bot_telegram, "InlineKeyboardMarkup", return_value=object()), \
              patch.object(bot_telegram.psycopg2, "connect", return_value=audit_connection):
             bot_telegram.USER_LOCATIONS.pop(user.id, None)
             await bot_telegram.handle_user_input(update, SimpleNamespace())

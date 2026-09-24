@@ -1,4 +1,15 @@
 USER_LOCATIONS = {}
+
+SOURCE_REQUEST_TERMS = (
+    "source", "sources", "référence", "références", "citation", "citations",
+    "détail", "détails", "detail", "details", "en savoir plus",
+    "source?", "where did", "references",
+)
+
+def user_requests_sources(text: str | None) -> bool:
+    """Return whether the user explicitly asks for sources or more detail."""
+    normalized = " ".join((text or "").lower().split())
+    return any(term in normalized for term in SOURCE_REQUEST_TERMS)
 import access_control
 # TODO: REOPEN PUBLIC ACCESS FOR THE PILOT PHASE / GENERAL DEPLOYMENT
 
@@ -440,6 +451,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - User Query: "{user_text if user_text else '[Voice Message]'}"
 
     Instructions:
+    - By default, answer briefly and practically: give the main conclusion and the next useful steps in a compact response. Do not append a bibliography, URL list, or full source inventory unless the user explicitly asks for sources, references, citations, or more detail.
     0. Source and location integrity:
        - Krova Agri is independent. Do not imply affiliation with CARDI, MAFF, or any other institution.
        - Do not attribute a recommendation to an institution from a document title alone. Name a source only when a specific, verifiable reference is available in the supplied context; otherwise say the source is unverified.
@@ -550,17 +562,18 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as exc:
         logger.warning("Progress message cleanup failed: %s", type(exc).__name__)
     source_lines = []
-    for source in rag_sources:
-        details = [value for value in (source.publication_date, source.source_locator) if value]
-        citation_details = f" ({'; '.join(details)})" if details else ""
-        source_lines.append(f"• {source.title}{citation_details} — {source.url}")
-    if web_result and web_result.status == "grounded":
-        for source in web_result.sources:
-            source_lines.append(f"• {source.title} — {source.url}")
-    source_lines = list(dict.fromkeys(source_lines))[:5]
-    source_labels = {"fr": "Sources consultées", "en": "Sources consulted", "km": "ប្រភពដែលបានពិនិត្យ"}
-    if source_lines:
-        response_text = f"{response_text.rstrip()}\n\n{source_labels.get(resp_lang, source_labels['km'])}:\n" + "\n".join(source_lines)
+    if user_requests_sources(user_text):
+        for source in rag_sources:
+            details = [value for value in (source.publication_date, source.source_locator) if value]
+            citation_details = f" ({'; '.join(details)})" if details else ""
+            source_lines.append(f"• {source.title}{citation_details} — {source.url}")
+        if web_result and web_result.status == "grounded":
+            for source in web_result.sources:
+                source_lines.append(f"• {source.title} — {source.url}")
+        source_lines = list(dict.fromkeys(source_lines))[:5]
+        source_labels = {"fr": "Sources consultées", "en": "Sources consulted", "km": "ប្រភពដែលបានពិនិត្យ"}
+        if source_lines:
+            response_text = f"{response_text.rstrip()}\n\n{source_labels.get(resp_lang, source_labels['km'])}:\n" + "\n".join(source_lines)
     await message.reply_text(to_telegram_plain_text(response_text), reply_markup=reply_markup)
 
 async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):

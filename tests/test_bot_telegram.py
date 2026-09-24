@@ -35,6 +35,10 @@ except ModuleNotFoundError as exc:  # Keep the dependency-light suite usable loc
 
 
 class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
+    def test_source_request_detection_is_explicit(self):
+        self.assertFalse(bot_telegram.user_requests_sources("Comment traiter les feuilles jaunes du riz ?"))
+        self.assertTrue(bot_telegram.user_requests_sources("Peux-tu me donner les sources ?"))
+
     async def test_text_without_location_reaches_rag_model_and_telegram(self):
         user = SimpleNamespace(id=12345, username="farmer")
         message = SimpleNamespace(
@@ -101,9 +105,9 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Missing GPS or a missing province must never block", prompt)
         self.assertEqual(message.reply_text.await_count, 2)
         self.assertIn("Réponse générale pour le Cambodge", message.reply_text.await_args.args[0])
-        self.assertIn("https://irri.org/rice", message.reply_text.await_args.args[0])
-        self.assertIn("IRRI rice guide (Chapter 2, p. 8)", message.reply_text.await_args.args[0])
-        self.assertIn("https://irri.org/water", message.reply_text.await_args.args[0])
+        self.assertNotIn("https://irri.org/rice", message.reply_text.await_args.args[0])
+        self.assertNotIn("IRRI rice guide (Chapter 2, p. 8)", message.reply_text.await_args.args[0])
+        self.assertNotIn("https://irri.org/water", message.reply_text.await_args.args[0])
         audit_values = audit_cursor.execute.call_args.args[1]
         trace = json.loads(audit_values[-1])
         self.assertEqual(trace["rag"]["status"], "ok")

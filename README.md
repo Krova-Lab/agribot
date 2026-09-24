@@ -60,7 +60,7 @@ flowchart LR
     Retrieval --> PG[(PostgreSQL + pgvector)]
     Retrieval --> Prompt[Context-aware prompt assembly]
     Vision --> Prompt
-    Prompt --> Models[Task-specific Gemini / Azure routing]
+    Prompt --> Models[Task-specific model routing]
     Models --> Reply[Khmer / French / English response]
     Reply --> Telegram
     Telegram --> Audit[Telemetry & moderation API]
@@ -69,7 +69,7 @@ flowchart LR
 ### Main components
 
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
-- `llm_adapter.py` — task-specific Gemini/Azure routing and bounded model failover.
+- `llm_adapter.py` — task-specific model routing and bounded failover to GPT-4o.
 - `media_pipeline.py` — voice transcription or cautious image observation before retrieval.
 - `rag_search.py` — semantic retrieval of approved passages with verified source URLs, plus structured retrieval provenance.
 - `web_research.py` — on-demand Google Search grounding for substantive agricultural questions, with search queries and citations retained.
@@ -80,8 +80,8 @@ flowchart LR
 
 ### Models
 
-- **Conversation and vision:** `gemini-3.6-flash` by default, with the verified Azure `gpt-4o` deployment as a configurable backup.
-- **Voice transcription:** `gemini-3.6-flash` by default; an Azure transcription deployment can be added after Khmer speech evaluation.
+- **Conversation and vision:** `gemini-3.6-flash` by default, with GPT-4o as a configurable backup.
+- **Voice transcription:** `gemini-3.6-flash` by default.
 - **Semantic embeddings:** `models/gemini-embedding-001`
 - **Vector store:** PostgreSQL 16 with `pgvector`
 
@@ -122,7 +122,7 @@ If private prompts are unavailable, the application falls back to the community 
 - PostgreSQL 16 with `pgvector`
 - Telegram bot token
 - Gemini API key
-- Optional Azure Foundry `/openai/v1` endpoint and API key for the backup model
+- Optional GPT-4o backup credentials
 - Optional: Pl@ntNet API key for botanical identification
 
 ### Install

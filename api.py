@@ -23,6 +23,8 @@ PROMPTS = load_prompts()
 
 @app.post("/api/chat")
 def ask_agribot(request: ChatRequest):
+    raise HTTPException(status_code=410, detail="This legacy endpoint is disabled; use api_server.py")
+    # Kept below for historical reference during migration; it is unreachable.
     try:
         # 1. Embed the question
         emb_res = client.models.embed_content(

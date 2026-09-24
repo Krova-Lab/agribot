@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 import os
 import sys
+import uuid
+import json
+from pathlib import Path
 from dotenv import load_dotenv
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand, BotCommandScopeDefault
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
@@ -18,7 +21,7 @@ if not TOKEN:
     sys.exit(1)
 
 SUPPORTED_EXT = {
-    ".pdf", ".txt", ".md", ".docx", ".doc", ".xlsx", ".xls", ".png", ".jpg", ".jpeg"
+    ".pdf", ".txt", ".md", ".docx", ".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".webp"
 }
 
 MESSAGES = {
@@ -281,26 +284,37 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    dest = os.path.join(DROPZONE, file_name)
-    await update.message.reply_text(t["recv"].format(file_name), parse_mode="Markdown")
+    original_name = Path(file_name).name
+    dest = os.path.join(DROPZONE, f"{uuid.uuid4().hex}{ext}")
+    await update.message.reply_text(t["recv"].format(original_name), parse_mode="Markdown")
 
     try:
         tg_file = await doc.get_file()
         await tg_file.download_to_drive(custom_path=dest)
+        Path(dest).with_suffix(".source.json").write_text(
+            json.dumps({"source_title": original_name}, ensure_ascii=False),
+            encoding="utf-8",
+        )
 
     # Duplicate SHA-256 audit
         file_sha = doc_auditor.compute_file_sha256(dest)
         is_dup, reason = doc_auditor.check_duplicate(file_sha)
         if is_dup:
             os.remove(dest)
+            manifest_path = Path(dest).with_suffix(".source.json")
+            if manifest_path.exists():
+                manifest_path.unlink()
             await update.message.reply_text(f"⚠️ **Fichier ignoré** : {reason}")
             return
 
-        await update.message.reply_text(t["ingest_ok"].format(file_name), parse_mode="Markdown")
+        await update.message.reply_text(t["ingest_ok"].format(original_name), parse_mode="Markdown")
 
     except Exception as e:
         if os.path.exists(dest):
             os.remove(dest)
+        manifest_path = Path(dest).with_suffix(".source.json")
+        if manifest_path.exists():
+            manifest_path.unlink()
         await update.message.reply_text(f"❌ Erreur lors du téléchargement : {e}")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -319,12 +333,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     photo = update.message.photo[-1]
     file_name = f"scan_{photo.file_unique_id}.jpg"
-    dest = os.path.join(DROPZONE, file_name)
+    dest = os.path.join(DROPZONE, f"{uuid.uuid4().hex}.jpg")
 
     await update.message.reply_text(t["recv"].format(file_name), parse_mode="Markdown")
     try:
         tg_file = await photo.get_file()
         await tg_file.download_to_drive(custom_path=dest)
+        Path(dest).with_suffix(".source.json").write_text(
+            json.dumps({"source_title": file_name}, ensure_ascii=False),
+            encoding="utf-8",
+        )
         await update.message.reply_text(t["scan_ok"].format(file_name), parse_mode="Markdown")
     except Exception as e:
         if os.path.exists(dest):

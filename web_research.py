@@ -127,7 +127,12 @@ Return a concise evidence summary, not the final user-facing answer. Keep source
             if text and refs:
                 claim_sources.append({"segment": text, "sources": refs})
         summary = (getattr(response, "text", None) or "").strip()
-        status = "grounded" if sources and summary else "searched_no_sources" if queries else "not_grounded"
+        if sources and summary and claim_sources:
+            status = "grounded"
+        elif sources and summary:
+            status = "sources_returned_unlinked"
+        else:
+            status = "searched_no_sources" if queries else "not_grounded"
         return WebResearchResult(status, query, model, summary, queries, tuple(sources), tuple(claim_sources))
     except Exception as exc:
         logger.warning("Web research failed model=%s error=%s", model, type(exc).__name__)

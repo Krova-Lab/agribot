@@ -592,7 +592,7 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         if interaction_id and interaction_id != "None":
             conn = psycopg2.connect(**DB_PARAMS)
             cur = conn.cursor()
-            cur.execute("UPDATE interactions SET rating_thumb = %s WHERE id = %s AND rating_thumb IS NULL;", (val, int(interaction_id)))
+            cur.execute("UPDATE interactions SET rating_thumb = %s WHERE id = %s AND telegram_id = %s AND rating_thumb IS NULL;", (val, int(interaction_id), update.effective_user.id))
             conn.commit()
             if cur.rowcount > 0:
                 await context.bot.send_message(chat_id=query.message.chat_id, text=msg)

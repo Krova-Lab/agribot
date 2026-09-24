@@ -56,6 +56,27 @@ class WebResearchTests(unittest.TestCase):
         self.assertEqual(result.status, "not_grounded")
         self.assertEqual(result.sources, ())
 
+    def test_summary_without_claim_support_is_not_marked_grounded(self):
+        metadata = SimpleNamespace(
+            web_search_queries=["Cambodia rice"],
+            grounding_chunks=[
+                SimpleNamespace(web=SimpleNamespace(title="Example", uri="https://example.org/rice")),
+            ],
+            grounding_supports=[],
+        )
+        response = SimpleNamespace(
+            candidates=[SimpleNamespace(grounding_metadata=metadata)],
+            text="A summary without claim-level support.",
+        )
+        client = SimpleNamespace(models=SimpleNamespace(generate_content=MagicMock(return_value=response)))
+
+        with patch.dict(os.environ, {"KROVA_WEB_RESEARCH_ENABLED": "true", "GEMINI_API_KEY": "test-key"}):
+            with patch.object(web_research, "_client", return_value=client):
+                result = web_research.research_web("Rice in Cambodia", "en")
+
+        self.assertEqual(result.status, "sources_returned_unlinked")
+        self.assertEqual(result.claim_sources, ())
+
     def test_greetings_skip_web_search(self):
         with patch.object(web_research, "_client") as client:
             result = web_research.research_web("bonjour", "fr")

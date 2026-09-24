@@ -29,6 +29,10 @@ DROPZONE_DIR = os.path.expanduser("~/agribot/rag_dropzone")
 PROCESSED_DIR = os.path.expanduser("~/agribot/rag_processed")
 REJECTED_DIR = os.path.expanduser("~/agribot/rag_rejected")
 FAILED_DIR = os.path.expanduser("~/agribot/rag_failed")
+MAX_INGEST_BYTES = int(os.getenv("RAG_MAX_INGEST_BYTES", str(50 * 1024 * 1024)))
+MAX_PDF_PAGES = int(os.getenv("RAG_MAX_PDF_PAGES", "100"))
+MAX_EXTRACTED_CHARS = int(os.getenv("RAG_MAX_EXTRACTED_CHARS", "5000000"))
+MAX_CHUNKS = int(os.getenv("RAG_MAX_CHUNKS", "500"))
 
 # Required keywords to validate the agronomic domain (at least two must be present)
 AGRI_KEYWORDS = [
@@ -99,6 +103,9 @@ def extract_pages_from_file(filepath: str) -> list[str]:
         print(f"📷 Image file detected ({ext}). Starting Tesseract OCR...")
         try:
             with Image.open(filepath) as img:
+                width, height = img.size
+                if width * height > 40_000_000:
+                    raise ValueError("image dimensions exceed the configured pixel limit")
                 pages = [perform_ocr_image(img)]
         except Exception as e:
             print(f"Image read/OCR error for {filepath}: {e}")
@@ -108,6 +115,9 @@ def extract_pages_from_file(filepath: str) -> list[str]:
     elif ext == ".pdf":
         try:
             reader = PdfReader(filepath)
+            if len(reader.pages) > MAX_PDF_PAGES:
+                print(f"PDF rejected: too many pages ({len(reader.pages)} > {MAX_PDF_PAGES})")
+                return []
             for page in reader.pages:
                 pages.append(sanitize_text(page.extract_text() or ""))
         except Exception as e:
@@ -122,7 +132,9 @@ def extract_pages_from_file(filepath: str) -> list[str]:
         if native_length < 150:
             print(f"📄 Native PDF text insufficient ({native_length} chars < 150). Falling back to page-by-page OCR (pdf2image + Tesseract)...")
             try:
-                images = pdf2image.convert_from_path(filepath)
+                images = pdf2image.convert_from_path(
+                    filepath, dpi=150, first_page=1, last_page=MAX_PDF_PAGES
+                )
                 pages = [perform_ocr_image(img) for img in images]
             except Exception as e:
                 print(f"PDF conversion/OCR error for {filepath}: {e}")
@@ -234,6 +246,14 @@ def ingest_file(filepath: str):
     source_title = sanitize_text(filename)
     print(f"\n--- Ingesting: {filename} ---")
 
+    file_size = os.path.getsize(filepath)
+    if file_size > MAX_INGEST_BYTES:
+        print(f"❌ [REJETÉ] {filename} : file too large ({file_size} bytes > {MAX_INGEST_BYTES})")
+        os.makedirs(REJECTED_DIR, exist_ok=True)
+        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
+        move_source_manifest(filepath, REJECTED_DIR)
+        return
+
     metadata, metadata_error = load_source_manifest(filepath)
     if metadata_error:
         print(f"❌ [REJETÉ] {filename} : {metadata_error}")
@@ -244,6 +264,11 @@ def ingest_file(filepath: str):
 
     pages = extract_pages_from_file(filepath)
     text = "\n".join(pages).strip()
+    if len(text) > MAX_EXTRACTED_CHARS:
+        print(f"❌ [REJETÉ] {filename} : extracted text exceeds the configured limit")
+        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
+        move_source_manifest(filepath, REJECTED_DIR)
+        return
     is_valid, reason = validate_document(text, filename)
 
     if not is_valid:
@@ -270,6 +295,8 @@ def ingest_file(filepath: str):
             return
 
         chunks = chunk_pages(pages, metadata.get("source_locator"))
+        if len(chunks) > MAX_CHUNKS:
+            raise ValueError(f"document produces too many chunks ({len(chunks)} > {MAX_CHUNKS})")
         print(f"📄 Validation passed ({len(chunks)} chunks). Generating embeddings...")
 
         inserted_count = 0

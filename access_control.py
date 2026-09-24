@@ -75,6 +75,20 @@ def get_user_role(telegram_id: int) -> str:
 def is_admin(telegram_id: int) -> bool:
     return get_user_role(telegram_id) == "admin"
 
+def reset_ingestor_strikes(telegram_id: int) -> None:
+    """Reset the temporary upload strike counter after an admin decision."""
+    conn = get_db_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE ingestor_reputation SET strikes = 0 WHERE telegram_id = %s",
+            (telegram_id,),
+        )
+        conn.commit()
+        cur.close()
+    finally:
+        conn.close()
+
 def is_allowed_access(telegram_id: int, username: str | None = None) -> bool:
     refresh_cache_if_needed()
     role = get_user_role(telegram_id)

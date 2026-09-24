@@ -1,8 +1,9 @@
 import secrets
 import time
+import os
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Depends
-from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException, Depends, Header
+from pydantic import BaseModel, Field
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from config.database import DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, PROJECT_ROOT
@@ -16,6 +17,15 @@ app = FastAPI(
 
 DB_PASS = DB_PASSWORD
 DROPZONE_DIR = PROJECT_ROOT / "rag_dropzone"
+API_TOKEN = os.getenv("KROVA_API_TOKEN")
+
+def require_api_token(authorization: Optional[str] = Header(default=None)):
+    """Protect the internal API with a fail-closed bearer token."""
+    if not API_TOKEN:
+        raise HTTPException(status_code=503, detail="Management API authentication is not configured")
+    scheme, _, token = (authorization or "").partition(" ")
+    if scheme.lower() != "bearer" or not secrets.compare_digest(token, API_TOKEN):
+        raise HTTPException(status_code=401, detail="Authentication required")
 
 def get_db():
     conn = psycopg2.connect(
@@ -31,9 +41,9 @@ def get_db():
 
 class EnrollRequest(BaseModel):
     telegram_id: int
-    username: Optional[str] = None
-    role: str = "tester"
-    preferred_language: str = "km"
+    username: Optional[str] = Field(default=None, max_length=128)
+    role: str = Field(default="tester", pattern="^(tester|user)$")
+    preferred_language: str = Field(default="km", max_length=8)
 
 class UserResponse(BaseModel):
     telegram_id: int
@@ -45,42 +55,30 @@ class UserResponse(BaseModel):
 class ReviewSubmission(BaseModel):
     interaction_id: int
     reviewer_telegram_id: Optional[int] = None
-    reviewer_name: str
-    status: str  # 'validated', 'corrected', 'flagged_rag'
-    corrected_diagnosis: Optional[str] = None
-    agronomist_notes: Optional[str] = None
+    reviewer_name: str = Field(max_length=128)
+    status: str = Field(pattern="^(validated|corrected|flagged_rag|pending)$")
+    corrected_diagnosis: Optional[str] = Field(default=None, max_length=20000)
+    agronomist_notes: Optional[str] = Field(default=None, max_length=10000)
 
 class PromoteRagRequest(BaseModel):
     interaction_id: int
-    title: str
-    crop: str = "General"
+    title: str = Field(max_length=256)
+    crop: str = Field(default="General", max_length=128)
 
 # --- Existing routes (health & users) ---
 
 @app.get("/api/v1/health")
-def health_check(conn=Depends(get_db)):
-    with conn.cursor() as cur:
-        cur.execute("SELECT COUNT(*) AS total_users FROM bot_users;")
-        users = cur.fetchone()["total_users"]
-        cur.execute("SELECT value FROM bot_settings WHERE key = 'access_mode';")
-        mode = cur.fetchone()
-    return {
-        "status": "healthy",
-        "database": "connected",
-        "registered_users": users,
-        "access_mode": mode["value"] if mode else "unknown"
-    }
+def health_check():
+    return {"status": "healthy"}
 
 @app.get("/api/v1/users", response_model=List[UserResponse])
-def list_users(conn=Depends(get_db)):
+def list_users(_: None = Depends(require_api_token), conn=Depends(get_db)):
     with conn.cursor() as cur:
         cur.execute("SELECT telegram_id, username, role, is_active, preferred_language FROM bot_users ORDER BY created_at DESC;")
         return cur.fetchall()
 
 @app.post("/api/v1/users/enroll")
-def enroll_user(req: EnrollRequest, conn=Depends(get_db)):
-    if req.role not in ["tester", "user", "admin", "ingestor"]:
-        raise HTTPException(status_code=400, detail="Rôle invalide")
+def enroll_user(req: EnrollRequest, _: None = Depends(require_api_token), conn=Depends(get_db)):
     with conn.cursor() as cur:
         cur.execute("""
             INSERT INTO bot_users (telegram_id, username, role, is_active, preferred_language, updated_at)
@@ -92,7 +90,7 @@ def enroll_user(req: EnrollRequest, conn=Depends(get_db)):
     return {"status": "enrolled", "telegram_id": req.telegram_id, "role": req.role}
 
 @app.get("/api/v1/rag/documents")
-def list_rag_documents(conn=Depends(get_db)):
+def list_rag_documents(_: None = Depends(require_api_token), conn=Depends(get_db)):
     with conn.cursor() as cur:
         cur.execute("""
             SELECT id, title, source, protocol_type, total_chunks, created_at
@@ -102,7 +100,8 @@ def list_rag_documents(conn=Depends(get_db)):
         return cur.fetchall()
 
 @app.get("/api/v1/interactions")
-def list_interactions(limit: int = 20, conn=Depends(get_db)):
+def list_interactions(limit: int = 20, _: None = Depends(require_api_token), conn=Depends(get_db)):
+    limit = max(1, min(limit, 100))
     with conn.cursor() as cur:
         cur.execute("""
             SELECT
@@ -129,7 +128,8 @@ def list_interactions(limit: int = 20, conn=Depends(get_db)):
 # --- New endpoints: moderation & agronomic validation ---
 
 @app.get("/api/v1/moderation/pending")
-def list_pending_moderation(limit: int = 30, conn=Depends(get_db)):
+def list_pending_moderation(limit: int = 30, _: None = Depends(require_api_token), conn=Depends(get_db)):
+    limit = max(1, min(limit, 100))
     """Return interactions with negative feedback or no review first."""
     with conn.cursor() as cur:
         cur.execute("""
@@ -159,7 +159,7 @@ def list_pending_moderation(limit: int = 30, conn=Depends(get_db)):
         return cur.fetchall()
 
 @app.post("/api/v1/moderation/review")
-def submit_review(review: ReviewSubmission, conn=Depends(get_db)):
+def submit_review(review: ReviewSubmission, _: None = Depends(require_api_token), conn=Depends(get_db)):
     """Create or update an expert agronomist review of a diagnosis."""
     if review.status not in ["validated", "corrected", "flagged_rag", "pending"]:
         raise HTTPException(status_code=400, detail="Statut de revue invalide.")
@@ -188,7 +188,7 @@ def submit_review(review: ReviewSubmission, conn=Depends(get_db)):
     return {"status": "success", "review_id": row["id"], "review_status": row["status"]}
 
 @app.get("/api/v1/analytics/stats")
-def get_analytics_overview(conn=Depends(get_db)):
+def get_analytics_overview(_: None = Depends(require_api_token), conn=Depends(get_db)):
     """Provide global metrics for the supervision dashboard."""
     with conn.cursor() as cur:
         # Total interactions & average latency
@@ -231,7 +231,7 @@ def get_analytics_overview(conn=Depends(get_db)):
     }
 
 @app.post("/api/v1/moderation/promote-to-rag")
-def promote_corrected_to_rag(req: PromoteRagRequest, conn=Depends(get_db)):
+def promote_corrected_to_rag(req: PromoteRagRequest, _: None = Depends(require_api_token), conn=Depends(get_db)):
     """Export a corrected agronomic recommendation to the RAG ingestion dropzone."""
     with conn.cursor() as cur:
         cur.execute("""

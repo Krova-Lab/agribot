@@ -137,7 +137,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Set credentials in `.env` and start PostgreSQL with the `vector` extension enabled. The public clone automatically uses `config/prompts.example.json`; production deployments should provide the private `config/prompts.json` out of band.
+Set credentials in `.env`, including a long random `KROVA_API_TOKEN`, and start PostgreSQL with the `vector` extension enabled. The public clone automatically uses `config/prompts.example.json`; production deployments should provide the private `config/prompts.json` out of band. The ingestion limits in `.env.example` also apply to files copied directly into the dropzone.
 
 ### Run the services
 
@@ -146,7 +146,9 @@ Set credentials in `.env` and start PostgreSQL with the `vector` extension enabl
 python bot_telegram.py
 
 # REST API
-uvicorn api_server:app --host 0.0.0.0 --port 8000
+KROVA_API_TOKEN=... uvicorn api_server:app --host 127.0.0.1 --port 8000
+
+# Management routes require: Authorization: Bearer $KROVA_API_TOKEN
 
 # Ingest approved documents from the dropzone
 python ingest_files.py

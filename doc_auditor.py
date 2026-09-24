@@ -45,7 +45,7 @@ def check_duplicate(file_hash: str, content_hash: str = None) -> tuple[bool, str
         if res:
             cur.close()
             conn.close()
-        return True, f"Text duplicate (same content as '{res[0]}')"
+            return True, f"Text duplicate (same content as '{res[0]}')"
 
     cur.close()
     conn.close()

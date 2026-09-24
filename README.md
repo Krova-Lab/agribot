@@ -206,7 +206,7 @@ Contributions are welcome, especially in:
 
 Please avoid committing API keys, user data, RAG documents, media, database dumps, or private prompt files. See `.gitignore` and the public prompt example before opening a pull request.
 
-The private repository is the source of truth. A filtered GitHub Actions workflow publishes its safe subset to [the public mirror](https://github.com/Krova-Lab/agribot), where the public CI pipeline repeats the compilation, smoke-test, and Docker checks.
+The private repository is the source of truth. A filtered GitHub Actions workflow publishes its safe subset to [the public mirror](https://github.com/Krova-Lab/agribot), where the public CI pipeline repeats the compilation, smoke-test, and Docker checks. Mirror commits summarize the public files changed and source revision; they do not copy private commit messages.
 
 ## License
 

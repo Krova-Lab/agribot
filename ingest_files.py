@@ -10,6 +10,7 @@ from pypdf import PdfReader
 from google import genai
 from dotenv import load_dotenv
 from config.database import get_db_params
+from source_metadata import load_source_manifest, move_source_manifest
 
 try:
     import docx
@@ -187,6 +188,14 @@ def ingest_file(filepath: str):
     source_title = sanitize_text(filename)
     print(f"\n--- Ingesting: {filename} ---")
 
+    metadata, metadata_error = load_source_manifest(filepath)
+    if metadata_error:
+        print(f"❌ [REJETÉ] {filename} : {metadata_error}")
+        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
+        move_source_manifest(filepath, REJECTED_DIR)
+        return
+    source_title = metadata.get("source_title") or source_title
+
     text = extract_text_from_file(filepath)
     is_valid, reason = validate_document(text, filename)
 
@@ -194,6 +203,7 @@ def ingest_file(filepath: str):
         print(f"❌ [REJETÉ] {filename} : {reason}")
         dest = os.path.join(REJECTED_DIR, filename)
         shutil.move(filepath, dest)
+        move_source_manifest(filepath, REJECTED_DIR)
         return
 
     sha256_hash = calculate_sha256(filepath)
@@ -207,6 +217,7 @@ def ingest_file(filepath: str):
             print(f"⚠️ [DUPLICATE] {filename} is already in the database. Moving to rejected.")
             dest = os.path.join(REJECTED_DIR, filename)
             shutil.move(filepath, dest)
+            move_source_manifest(filepath, REJECTED_DIR)
             cursor.close()
             conn.close()
             return
@@ -221,10 +232,20 @@ def ingest_file(filepath: str):
             emb = get_embedding(chunk_clean)
             cursor.execute(
                 """
-                INSERT INTO rag_documents (file_sha256, source_title, category, content, embedding)
-                VALUES (%s, %s, %s, %s, %s)
+                INSERT INTO rag_documents (
+                    file_sha256, source_title, category, content, embedding,
+                    source_url, source_publisher, source_publication_date,
+                    source_license, source_locator, content_sha256,
+                    provenance_status, audit_status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 'unverified', 'pending')
                 """,
-                (sha256_hash, source_title, "ingested", chunk_clean, emb)
+                (
+                    sha256_hash, source_title, "ingested", chunk_clean, emb,
+                    metadata.get("source_url"), metadata.get("source_publisher"),
+                    metadata.get("source_publication_date"), metadata.get("source_license"),
+                    metadata.get("source_locator"), hashlib.sha256(chunk_clean.encode("utf-8")).hexdigest(),
+                )
             )
             inserted_count += 1
 
@@ -236,6 +257,11 @@ def ingest_file(filepath: str):
 
         dest = os.path.join(PROCESSED_DIR, filename)
         shutil.move(filepath, dest)
+        move_source_manifest(filepath, PROCESSED_DIR)
+        if not metadata.get("source_url"):
+            print("⚠️ Document indexed as pending: no source URL was supplied; it cannot be retrieved by the bot.")
+        else:
+            print("ℹ️ Source metadata recorded as unverified; a reviewer must verify it before retrieval.")
         print(f"✅ [SUCCESS] {filename} indexed and moved to {PROCESSED_DIR}")
 
     except Exception as e:
@@ -261,7 +287,10 @@ def process_dropzone():
     os.makedirs(FAILED_DIR, exist_ok=True)
 
     files = glob.glob(os.path.join(DROPZONE_DIR, "*"))
-    files = [f for f in files if os.path.isfile(f) and not f.endswith(".gitkeep")]
+    files = [
+        f for f in files
+        if os.path.isfile(f) and not f.endswith((".gitkeep", ".source.json"))
+    ]
 
     if not files:
         print("Aucun fichier en attente dans la dropzone.")

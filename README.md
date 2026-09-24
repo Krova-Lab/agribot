@@ -71,7 +71,8 @@ flowchart LR
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
 - `llm_adapter.py` — task-specific Gemini/Azure routing and bounded model failover.
 - `media_pipeline.py` — voice transcription or cautious image observation before retrieval.
-- `rag_search.py` — semantic retrieval across new `rag_documents` entries and the historical `knowledge_base` corpus.
+- `rag_search.py` — semantic retrieval of approved passages with verified source URLs, plus structured retrieval provenance.
+- `web_research.py` — on-demand Google Search grounding for substantive agricultural questions, with search queries and citations retained.
 - `ingest_files.py` / `ingest_daemon.py` — validation, chunking, embedding, and ingestion of approved documents.
 - `api_server.py` — REST API for telemetry, moderation, and controlled promotion of verified knowledge into the RAG pipeline.
 - `config/` — prompt loading and the community-safe prompt example. Private production prompts are intentionally excluded from Git.
@@ -86,12 +87,19 @@ flowchart LR
 
 Text, voice, and photo now have separate inference routes. Speech is transcribed and photos are described before vector retrieval; the response model receives the same retrieved context regardless of provider. Embeddings remain on Gemini so existing vectors stay compatible. Route configuration and evaluation instructions are in [docs/model-routing.md](docs/model-routing.md).
 
-Historical vectors remain in `knowledge_base` and are searched without re-embedding.
-New ingestion writes to `rag_documents`. Retrieval excludes the historical
-`agri_hf_` export pending a source-quality review: spot checks found unrelated
-religious, historical, and language-course text in that batch. It also skips
-known unverified legacy titles and non-approved new entries. The old corpus is
-not deleted or silently marked as approved.
+Historical vectors remain in `knowledge_base` and are not re-embedded. Retrieval
+requires both an approved review status and verified, structured source
+provenance (URL, publisher, publication date, licence, and page/section where
+available). Documents without that record remain stored but are not offered as
+evidence. The historical `agri_hf_` export remains excluded pending a source
+quality review. New ingestion records a `.source.json` sidecar and always starts
+as unverified/pending; a filename or an OCR claim is not a citation.
+
+Substantive agricultural questions also receive a Google Search grounding pass
+by default, independently of the model selected to write the final answer.
+Grounding queries and returned citation URLs are stored with the interaction;
+the bot only says it checked the Web when the provider returned verifiable
+grounding sources. See [the provenance and web research workflow](docs/rag-provenance-and-web-research.md).
 
 ## Data and safety boundaries
 
@@ -153,9 +161,11 @@ Source documents / optional datasets
               ↓
         rag_dropzone/
               ↓
- Validation, sanitisation & prompt-injection checks
+ Source manifest + validation, sanitisation & prompt-injection checks
               ↓
-     Chunking + Gemini embeddings
+     Chunking + Gemini embeddings (pending review)
+              ↓
+  Human source verification and approval
               ↓
        PostgreSQL / pgvector
               ↓
@@ -178,7 +188,7 @@ The retrieval layer is deliberately local to the deployment. Hugging Face datase
 - Add stronger retrieval evaluation, source confidence, and answer traceability.
 - Separate bot-specific instructions from Telegram orchestration into versioned, testable prompt configuration. The public example already lives in `config/`, but runtime rules are still assembled in `bot_telegram.py`.
 - Evaluate location extraction from written, spoken, and visual context, with confirmation when ambiguous; keep GPS sharing optional.
-- Formalise dataset licensing and provenance metadata.
+- Review existing corpus provenance before restoring legacy passages to retrieval.
 - Strengthen deployment observability, rate controls, and multilingual safety evaluation.
 - Publish reusable agritech components while keeping sensitive operational data isolated.
 - Evaluate additional messaging channels such as WhatsApp and Messenger.

@@ -3,6 +3,7 @@
 import os
 import sys
 import types
+import json
 import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -63,7 +64,21 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
                  "Unavailable: no coordinates supplied",
                  "Cambodia; no specific location confirmed",
              )) as location, \
-             patch.object(bot_telegram, "search_rag", return_value="[rice] Yellow leaves guidance") as rag, \
+             patch.object(bot_telegram, "retrieve_rag", return_value=SimpleNamespace(
+                 status="ok",
+                 sources=(SimpleNamespace(
+                     title="IRRI rice guide", content="Yellow leaves guidance", url="https://irri.org/rice",
+                     publisher="IRRI", publication_date=None, license="CC BY", distance=0.1,
+                     trace=lambda rank: {"document_id": 1, "rank": rank, "url": "https://irri.org/rice"},
+                 ),),
+                 trace=lambda: {"status": "ok", "sources": [{"document_id": 1, "url": "https://irri.org/rice"}]},
+             )) as rag, \
+             patch.object(bot_telegram, "format_rag_context", return_value="[RAG SOURCE 1] IRRI rice guide"), \
+             patch.object(bot_telegram, "research_web", return_value=SimpleNamespace(
+                 prompt_context=lambda: "Google Search found a Cambodia-relevant source",
+                 trace=lambda: {"status": "grounded", "sources": [{"title": "IRRI", "url": "https://irri.org/water"}]},
+                 status="grounded", sources=[SimpleNamespace(title="IRRI", url="https://irri.org/water")],
+             )) as web_research, \
              patch.object(bot_telegram, "ask_llm", return_value=("Réponse générale pour le Cambodge", "gemini:test")) as llm, \
              patch.object(bot_telegram, "InlineKeyboardButton", return_value=object()), \
              patch.object(bot_telegram, "InlineKeyboardMarkup", return_value=object()), \
@@ -73,14 +88,23 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
 
         location.assert_called_once()
         self.assertIsNone(location.call_args.args[0])
-        rag.assert_called_once_with(message.text, limit=2)
+        rag.assert_called_once_with(message.text, limit=3)
+        web_research.assert_called_once_with(message.text, "fr")
         llm.assert_called_once()
         prompt = llm.call_args.args[0]
         self.assertIn("Cambodia; no specific location confirmed", prompt)
-        self.assertIn("[rice] Yellow leaves guidance", prompt)
-        self.assertIn("best useful general guidance for Cambodia first", prompt)
+        self.assertIn("[RAG SOURCE 1] IRRI rice guide", prompt)
+        self.assertIn("Google Search found a Cambodia-relevant source", prompt)
+        self.assertIn("Missing GPS or a missing province must never block", prompt)
         self.assertEqual(message.reply_text.await_count, 2)
         self.assertIn("Réponse générale pour le Cambodge", message.reply_text.await_args.args[0])
+        self.assertIn("https://irri.org/rice", message.reply_text.await_args.args[0])
+        self.assertIn("https://irri.org/water", message.reply_text.await_args.args[0])
+        audit_values = audit_cursor.execute.call_args.args[1]
+        trace = json.loads(audit_values[-1])
+        self.assertEqual(trace["rag"]["status"], "ok")
+        self.assertEqual(trace["web"]["status"], "grounded")
+        self.assertIn("https://irri.org/water", trace["web"]["sources"][0]["url"])
         progress.delete.assert_awaited_once()
         self.assertNotIn(user.id, bot_telegram.USER_LOCATIONS)
 

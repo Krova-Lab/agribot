@@ -94,7 +94,7 @@ if __name__ == "__main__":
     sample_lon = 104.9282
     sample_query = "Feuilles jaunissantes sur mon riz en zone pluviale"
     
-    print(f"Lancement du test d'analyse pour : '{sample_query}'...\n")
+    print(f"Starting analysis test for: '{sample_query}'...\n")
     result = analyze_crop_issue(None, sample_lat, sample_lon, sample_query)
     print("Analysis result:\n")
     print(result)

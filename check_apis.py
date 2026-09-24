@@ -51,8 +51,8 @@ try:
     if res.status_code == 200:
         print("[OK] API SoilGrids accessible.")
     else:
-        print(f"[AVERTISSEMENT] SoilGrids a répondu avec le code {res.status_code} (Le fallback régional s'activera)")
+        print(f"[WARNING] SoilGrids returned HTTP {res.status_code}; regional fallback will be used")
 except Exception as e:
-    print(f"[AVERTISSEMENT / TIMEOUT] SoilGrids injoignable : {e} (Le fallback régional s'activera)")
+        print(f"[WARNING / TIMEOUT] SoilGrids is unreachable: {e}; regional fallback will be used")
 
-print("--- [HEALTHCHECK] Fin des vérifications ---")
+print("--- [HEALTHCHECK] Checks complete ---")

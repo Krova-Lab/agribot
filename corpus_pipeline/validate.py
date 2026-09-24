@@ -23,7 +23,7 @@ def clean_text(raw_text: str) -> str:
 def validate_and_export():
     json_files = list(CLEANED_DIR.glob("*.json"))
     if not json_files:
-        print("[INFO] Aucun document à valider dans cleaned/")
+        print("[INFO] No documents to validate in cleaned/")
         return
 
     for file_path in json_files:
@@ -37,7 +37,7 @@ def validate_and_export():
 
     # Rule 1: minimum length after cleaning
             if len(text) < 300:
-                print(f"[REJET] {doc_id} : contenu trop court ({len(text)} car.)")
+                print(f"[REJECTED] {doc_id}: text too short ({len(text)} characters)")
                 shutil.move(str(file_path), str(REJECTED_DIR / file_path.name))
                 continue
 
@@ -49,7 +49,7 @@ def validate_and_export():
             has_keywords = any(kw in text.lower() for kw in keywords)
 
             if not has_keywords:
-                print(f"[REJET] {doc_id} : aucun mot-clé agronomique détecté")
+                print(f"[REJECTED] {doc_id}: no agricultural keyword detected")
                 shutil.move(str(file_path), str(REJECTED_DIR / file_path.name))
                 continue
 

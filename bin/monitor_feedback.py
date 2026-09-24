@@ -106,18 +106,18 @@ def main():
     print(" 📊 FEEDBACK AND TESTER MONITORING DASHBOARD (Krova Agri)")
     print(line)
 
-    print("\n1. TAUX GLOBAL DE SATISFACTION")
+    print("\n1. OVERALL SATISFACTION RATE")
     print(subline)
-    print(f"  • Votes positifs (👍)  : {thumbs_up}")
-    print(f"  • Votes négatifs (👎)  : {thumbs_down}")
-    print(f"  • Taux de satisfaction : {satisfaction_rate:.1f}% ({total_rated} vote(s) exprimé(s))")
+    print(f"  • Positive votes (👍)  : {thumbs_up}")
+    print(f"  • Negative votes (👎)  : {thumbs_down}")
+    print(f"  • Satisfaction rate    : {satisfaction_rate:.1f}% ({total_rated} vote(s) cast)")
 
-    print("\n2. DÉCOMPTE DES TESTEURS ENRÔLÉS")
+    print("\n2. ENROLLED TESTER COUNT")
     print(subline)
-    print(f"  • Utilisateurs actifs  : {active_users} / {QUOTA_MAX_TESTERS}")
-    print(f"  • Places restantes     : {remaining_slots}")
+    print(f"  • Active users         : {active_users} / {QUOTA_MAX_TESTERS}")
+    print(f"  • Remaining places     : {remaining_slots}")
 
-    print("\n3. 5 DERNIÈRES INTERACTIONS ENREGISTRÉES")
+    print("\n3. 5 MOST RECENT RECORDED INTERACTIONS")
     print(subline)
 
     headers = ["Timestamp", "User ID", "Question preview", "Diagnosis / response", "Rating"]
@@ -134,7 +134,7 @@ def main():
 
     if not interactions:
         total_width = sum(col_widths) + 3 * (len(col_widths) - 1)
-        print("| " + f"{'Aucune interaction enregistrée':^{total_width}}" + " |")
+        print("| " + f"{'No interactions recorded':^{total_width}}" + " |")
         print(sep)
     else:
         for item in interactions:
@@ -156,7 +156,7 @@ def main():
                     question = "[Sans texte]"
 
             question_preview = truncate_text(question, col_widths[2])
-            diag_title = item.get('diagnosis_title') or "[Aucun diagnostic]"
+            diag_title = item.get('diagnosis_title') or "[No diagnosis]"
             diag_preview = truncate_text(diag_title, col_widths[3])
             rating_str = format_rating(item.get('rating_thumb'))
 

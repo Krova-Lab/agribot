@@ -17,7 +17,7 @@ DROPZONE = str(PROJECT_ROOT / "rag_dropzone")
 os.makedirs(DROPZONE, exist_ok=True)
 
 if not TOKEN:
-    print("❌ TELEGRAM_ADMIN_BOT_TOKEN manquant dans .env")
+    print("❌ TELEGRAM_ADMIN_BOT_TOKEN is missing from .env")
     sys.exit(1)
 
 SUPPORTED_EXT = {
@@ -29,7 +29,7 @@ MESSAGES = {
         "unauthorized": "⛔ Accès non autorisé à cette console.",
         "start": (
             "🛠 **KhmerAgri Console Admin & Ingestion**\n\n"
-            "• Déposez ici vos documents (PDF, DOCX, XLSX, TXT, Scans).\n"
+            "• Déposez ici vos documents (PDF, DOCX, TXT, MD, scans).\n"
             "• Indexation automatique par le daemon RAG.\n\n"
             "📌 **Commandes :**\n"
             "/status - État dropzone et base vectorielle\n"
@@ -47,14 +47,14 @@ MESSAGES = {
         "recv": "📥 Réception de `{}`...",
         "ingest_ok": "✓ Fichier `{}` placé dans la dropzone (indexation auto).",
         "scan_ok": "✓ Scan `{}` placé dans la dropzone pour vectorisation.",
-        "bad_format": "❌ Format non supporté. Formats acceptés : PDF, DOCX, XLSX, TXT, MD, Images.",
+        "bad_format": "❌ Format non supporté. Formats acceptés : PDF, DOCX, TXT, MD, images.",
         "lang_set": "✓ Langue de la console définie sur : **Français**."
     },
     "km": {
         "unauthorized": "⛔ គ្មានការអនុញ្ញាតចូលប្រើប្រាស់។",
         "start": (
             "🛠 **ផ្ទាំងគ្រប់គ្រង និងបញ្ចូលឯកសារ (KhmerAgri Console)**\n\n"
-            "• សូមផ្ញើឯកសារកសិកម្មនៅទីនេះ (PDF, DOCX, XLSX, TXT, រូបភាពស្កេន)។\n"
+            "• សូមផ្ញើឯកសារកសិកម្មនៅទីនេះ (PDF, DOCX, TXT, MD, រូបភាពស្កេន)។\n"
             "• ឯកសារនឹងត្រូវបញ្ចូលទៅក្នុងប្រព័ន្ធស្វ័យប្រវត្តិ (RAG Vectorization)។\n\n"
             "📌 **ពាក្យបញ្ជា :**\n"
             "/status - ពិនិត្យស្ថានភាពឯកសារ និងទិន្នន័យ\n"
@@ -72,14 +72,14 @@ MESSAGES = {
         "recv": "📥 កំពុងទទួល `{}`...",
         "ingest_ok": "✓ ឯកសារ `{}` ត្រូវបានដាក់ចូលក្នុង Dropzone រួចរាល់។",
         "scan_ok": "✓ រូបភាពស្កេន `{}` ត្រូវបានដាក់ចូលក្នុង Dropzone រួចរាល់។",
-        "bad_format": "❌ ប្រភេទឯកសារមិនត្រឹមត្រូវ។ ឯកសារដែលអនុញ្ញាត: PDF, DOCX, XLSX, TXT, MD, រូបភាព។",
+        "bad_format": "❌ ប្រភេទឯកសារមិនត្រឹមត្រូវ។ ឯកសារដែលអនុញ្ញាត: PDF, DOCX, TXT, MD, រូបភាព។",
         "lang_set": "✓ ភាសាផ្ទាំងគ្រប់គ្រងត្រូវបានប្តូរទៅជា: **ភាសាខ្មែរ**។"
     },
     "en": {
         "unauthorized": "⛔ Unauthorized access.",
         "start": (
             "🛠 **KhmerAgri Console Admin & Ingestion**\n\n"
-            "• Drop agricultural documents here (PDF, DOCX, XLSX, TXT, Scans).\n"
+            "• Drop agricultural documents here (PDF, DOCX, TXT, MD, scans).\n"
             "• Automatic vector indexing via RAG daemon.\n\n"
             "📌 **Commands :**\n"
             "/status - Dropzone and DB status\n"
@@ -97,7 +97,7 @@ MESSAGES = {
         "recv": "📥 Receiving `{}`...",
         "ingest_ok": "✓ File `{}` placed in dropzone (auto-indexing).",
         "scan_ok": "✓ Scan `{}` placed in dropzone for vectorization.",
-        "bad_format": "❌ Unsupported format. Allowed: PDF, DOCX, XLSX, TXT, MD, Images.",
+        "bad_format": "❌ Unsupported format. Allowed: PDF, DOCX, TXT, MD, images.",
         "lang_set": "✓ Console language set to: **English**."
     }
 }
@@ -185,7 +185,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     except Exception as e:
-        await update.message.reply_text(f"Erreur status : {e}")
+        await update.message.reply_text(f"Status check failed: {e}")
 
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -208,11 +208,11 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"- Users actifs : {nb_users}"
         )
     except Exception as e:
-        await update.message.reply_text(f"Erreur stats : {e}")
+        await update.message.reply_text(f"Statistics check failed: {e}")
 
 async def cmd_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not access_control.is_admin(update.effective_user.id):
-        await update.message.reply_text("⛔ Réservé aux administrateurs.")
+        await update.message.reply_text("⛔ Administrators only.")
         return
     if not context.args or context.args[0] not in ["pilot", "public"]:
         await update.message.reply_text("Usage : /mode <pilot|public>")
@@ -223,7 +223,7 @@ async def cmd_mode(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def cmd_promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not access_control.is_admin(update.effective_user.id):
-        await update.message.reply_text("⛔ Réservé aux administrateurs.")
+        await update.message.reply_text("⛔ Administrators only.")
         return
     if len(context.args) < 2:
         await update.message.reply_text("Usage : /promote <telegram_id> <admin|ingestor|tester|user|banned>")
@@ -232,13 +232,13 @@ async def cmd_promote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_id = int(context.args[0])
         role = context.args[1].lower()
         if role not in ["admin", "ingestor", "tester", "user", "banned"]:
-            await update.message.reply_text("Rôle invalide.")
+            await update.message.reply_text("Invalid role.")
             return
         access_control.set_user_role(target_id, role)
         access_control.reset_ingestor_strikes(target_id)
-        await update.message.reply_text(f"✓ Rôle mis à jour et strikes réinitialisés : {target_id} -> `{role}`")
+        await update.message.reply_text(f"✓ Role updated and strikes reset: {target_id} -> `{role}`")
     except ValueError:
-        await update.message.reply_text("L'ID doit être un entier.")
+        await update.message.reply_text("The ID must be an integer.")
 
 async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -261,10 +261,10 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ext not in SUPPORTED_EXT:
         is_banned, strikes = access_control.record_ingestor_strike(user_id)
         if is_banned:
-            await update.message.reply_text("⛔ **Compte suspendu** suite à des envois répétés de fichiers non conformes.")
+            await update.message.reply_text("⛔ **Account suspended** after repeated unsupported file submissions.")
             await context.bot.send_message(
                 chat_id=ADMIN_NOTIFY_ID,
-                text=f"🚨 **Alerte Sécurité** : Ingestor `{user_id}` révoqué automatiquement (3 avertissements)."
+                text=f"🚨 **Security alert**: ingestor `{user_id}` was automatically revoked after 3 warnings."
             )
         else:
             await update.message.reply_text(f"{t['bad_format']}\n⚠️ Avertissement {strikes}/3 avant suspension.")
@@ -274,11 +274,11 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if doc.file_size and doc.file_size > MAX_FILE_SIZE:
         size_mb = round(doc.file_size / (1024 * 1024), 1)
         await update.message.reply_text(
-            f"❌ **Fichier trop volumineux ({size_mb} Mo)**.\n\n"
-            f"L'API Telegram standard bloque le téléchargement par bot au-delà de **20 Mo**.\n\n"
-            f"💡 **Solutions :**\n"
-            f"1. Compressez le PDF sous 20 Mo.\n"
-            f"2. Ou déposez directement le gros fichier sur le serveur via SCP/SFTP dans :\n"
+            f"❌ **File too large ({size_mb} MB)**.\n\n"
+            f"The standard Telegram Bot API blocks bot downloads above **20 MB**.\n\n"
+            f"💡 **Options:**\n"
+            f"1. Compress the PDF below 20 MB.\n"
+            f"2. Or copy the larger file to the server with SCP/SFTP into:\n"
             f"`{DROPZONE}/`",
             parse_mode="Markdown"
         )
@@ -304,7 +304,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
             manifest_path = Path(dest).with_suffix(".source.json")
             if manifest_path.exists():
                 manifest_path.unlink()
-            await update.message.reply_text(f"⚠️ **Fichier ignoré** : {reason}")
+            await update.message.reply_text(f"⚠️ **File skipped**: {reason}")
             return
 
         await update.message.reply_text(t["ingest_ok"].format(original_name), parse_mode="Markdown")
@@ -315,7 +315,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
         manifest_path = Path(dest).with_suffix(".source.json")
         if manifest_path.exists():
             manifest_path.unlink()
-        await update.message.reply_text(f"❌ Erreur lors du téléchargement : {e}")
+        await update.message.reply_text(f"❌ Download failed: {e}")
 
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -347,7 +347,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         if os.path.exists(dest):
             os.remove(dest)
-        await update.message.reply_text(f"❌ Erreur lors du téléchargement de l'image : {e}")
+        await update.message.reply_text(f"❌ Image download failed: {e}")
 
 def main():
     app = (

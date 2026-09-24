@@ -325,7 +325,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             img_save_path = os.path.join(IMAGE_CACHE_DIR, safe_fname)
             with open(img_save_path, "wb") as f:
                 f.write(media_bytes)
-            logger.info(f"Photo sauvegardée : {img_save_path} ({media_file_size} octets)")
+            logger.info(f"Photo saved: {img_save_path} ({media_file_size} bytes)")
         except Exception as e:
                 logger.warning(f"Image disk-save error: {e}")
 
@@ -369,7 +369,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             voice_save_path = os.path.join(AUDIO_CACHE_DIR, safe_fname)
             with open(voice_save_path, "wb") as f:
                 f.write(media_bytes)
-            logger.info(f"Audio sauvegardé : {voice_save_path} ({media_file_size} octets)")
+            logger.info(f"Audio saved: {voice_save_path} ({media_file_size} bytes)")
         except Exception as e:
                 logger.warning(f"Audio disk-save error: {e}")
 
@@ -620,7 +620,7 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             answer_preview = (diag_a[:100] + "...") if diag_a and len(diag_a) > 100 else (diag_a or "[Aucun diagnostic]")
 
                             admin_alert = (
-                                f"⚠️ Alerte Feedback Négatif (👎)\n"
+                                f"⚠️ Negative feedback alert (👎)\n"
                                 f"User: {fb_user_id}\n"
                                 f"Question: {question_preview}\n"
                                 f"Diagnostic: {answer_preview}"
@@ -634,7 +634,7 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     except Exception as alert_err:
                         logger.error(f"Negative-feedback admin notification error: {alert_err}")
             else:
-                logger.warning(f"Feedback ignoré (déjà renseigné) pour interaction {interaction_id}")
+                logger.warning(f"Feedback ignored because it was already set for interaction {interaction_id}")
             cur.close()
             conn.close()
     except Exception as e:
@@ -643,7 +643,7 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.edit_message_reply_markup(reply_markup=None)
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-    logger.error(f"Exception non gérée : {context.error}", exc_info=context.error)
+    logger.error(f"Unhandled exception: {context.error}", exc_info=context.error)
     if isinstance(update, Update) and update.effective_message:
         msg_error = (
             "⚠️ **សុំទោស ប្រព័ន្ធកំពុងមានបញ្ហាបច្ចេកទេស ឬកំពុងថែទាំ។**\n"

@@ -128,7 +128,7 @@ def main():
         if not check_api_health():
             errors.append("❌ Backend API REST (/api/v1/health) hors-service")
         else:
-            print("[Watchdog] Backend API REST restauré.")
+            print("[Watchdog] REST API backend restored.")
 
     # 3. Manage alerts and service lifecycle
     if errors:

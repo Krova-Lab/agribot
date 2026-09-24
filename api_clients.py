@@ -52,7 +52,7 @@ def identify_plant_plantnet(image_path_or_bytes, org_type="auto"):
     """
     api_key = os.getenv("PLANTNET_API_KEY")
     if not api_key:
-        return {"error": "PLANTNET_API_KEY non configurée"}
+        return {"error": "PLANTNET_API_KEY is not configured"}
 
     url = f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}"
     try:

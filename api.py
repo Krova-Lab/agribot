@@ -48,10 +48,10 @@ def ask_agribot(request: ChatRequest):
         conn.close()
 
         if not results:
-            return {"answer": "Je n'ai pas trouvé d'informations pertinentes dans ma base documentaire.", "sources": []}
+            return {"answer": "No relevant information was found in the document corpus.", "sources": []}
 
         # 3. Assemble the context
-        context_text = "\n\n---\n\n".join([f"Source [{row[0]}] : {row[1]}" for row in results])
+        context_text = "\n\n---\n\n".join([f"Source [{row[0]}]: {row[1]}" for row in results])
         sources_list = list(set([row[0] for row in results]))
         
         prompt = render_prompt(

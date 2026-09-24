@@ -212,7 +212,7 @@ def get_analytics_overview(_: None = Depends(require_api_token), conn=Depends(ge
 
         # Geographic breakdown (top five provinces)
         cur.execute("""
-            SELECT COALESCE(province, 'Non spécifiée') AS province, COUNT(*) AS count
+            SELECT COALESCE(province, 'Not specified') AS province, COUNT(*) AS count
             FROM interactions
             GROUP BY province
             ORDER BY count DESC LIMIT 5;
@@ -243,7 +243,7 @@ def promote_corrected_to_rag(req: PromoteRagRequest, _: None = Depends(require_a
         record = cur.fetchone()
 
     if not record or not record.get("corrected_diagnosis"):
-        raise HTTPException(status_code=404, detail="Aucun diagnostic corrigé trouvé pour cette interaction.")
+        raise HTTPException(status_code=404, detail="No corrected diagnosis was found for this interaction.")
 
     # Create a Markdown record in rag_dropzone
     file_name = f"krova_field_review_{secrets.token_hex(16)}.md"

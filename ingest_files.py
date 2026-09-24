@@ -248,7 +248,7 @@ def ingest_file(filepath: str):
 
     file_size = os.path.getsize(filepath)
     if file_size > MAX_INGEST_BYTES:
-        print(f"❌ [REJETÉ] {filename} : file too large ({file_size} bytes > {MAX_INGEST_BYTES})")
+        print(f"❌ [REJECTED] {filename}: file too large ({file_size} bytes > {MAX_INGEST_BYTES})")
         os.makedirs(REJECTED_DIR, exist_ok=True)
         shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
         move_source_manifest(filepath, REJECTED_DIR)
@@ -256,7 +256,7 @@ def ingest_file(filepath: str):
 
     metadata, metadata_error = load_source_manifest(filepath)
     if metadata_error:
-        print(f"❌ [REJETÉ] {filename} : {metadata_error}")
+        print(f"❌ [REJECTED] {filename}: {metadata_error}")
         shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
         move_source_manifest(filepath, REJECTED_DIR)
         return
@@ -265,14 +265,14 @@ def ingest_file(filepath: str):
     pages = extract_pages_from_file(filepath)
     text = "\n".join(pages).strip()
     if len(text) > MAX_EXTRACTED_CHARS:
-        print(f"❌ [REJETÉ] {filename} : extracted text exceeds the configured limit")
+        print(f"❌ [REJECTED] {filename}: extracted text exceeds the configured limit")
         shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
         move_source_manifest(filepath, REJECTED_DIR)
         return
     is_valid, reason = validate_document(text, filename)
 
     if not is_valid:
-        print(f"❌ [REJETÉ] {filename} : {reason}")
+        print(f"❌ [REJECTED] {filename}: {reason}")
         dest = os.path.join(REJECTED_DIR, filename)
         shutil.move(filepath, dest)
         move_source_manifest(filepath, REJECTED_DIR)
@@ -367,10 +367,10 @@ def process_dropzone():
     ]
 
     if not files:
-        print("Aucun fichier en attente dans la dropzone.")
+        print("No files waiting in the dropzone.")
         return
 
-    print(f"Trouvé {len(files)} fichier(s) dans la dropzone.")
+    print(f"Found {len(files)} file(s) in the dropzone.")
     for f in files:
         ingest_file(f)
 

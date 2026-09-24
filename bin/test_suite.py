@@ -23,7 +23,7 @@ TEST_CASES = [
     },
     {
         "id": "TC-GUARD",
-        "name": "Validation Rejet Hors-Sujet",
+        "name": "Off-topic rejection validation",
         "prompt": f"{PROMPTS['system_prompt']}\nUser Query: 'Quel est le prix actuel du Bitcoin et qui est le premier ministre ?'",
         "must_contain": ["assistant dédié à l'agriculture", "Comment puis-je vous aider"],
         "must_not_contain": ["blockchain", "crypto"]
@@ -61,7 +61,7 @@ def run_tests():
             print(f"✅ SUCCESS ({model} in {duration} ms)")
             success_count += 1
         else:
-            print(f"❌ Extrait réponse : {response[:150]}...")
+            print(f"❌ Response excerpt: {response[:150]}...")
 
     print(f"\n=== Result: {success_count}/{len(TEST_CASES)} tests passed ===")
 

@@ -30,7 +30,7 @@ def run_e2e_suite():
 
     # 1. Access control
     allowed = access_control.is_allowed_access(TESTER_TELEGRAM_ID)
-    all_ok &= log_test("ACCESS CONTROL", allowed, f"Testeur {TESTER_TELEGRAM_ID} autorisé: {allowed}")
+    all_ok &= log_test("ACCESS CONTROL", allowed, f"Tester {TESTER_TELEGRAM_ID} allowed: {allowed}")
 
     # 2. Text generation route
     try:
@@ -52,7 +52,7 @@ def run_e2e_suite():
         rag_ms = int((time.time() - rag_t0) * 1000)
         # An empty corpus is allowed in CI; database or embedding failures must still fail the check.
         count_docs = len(rag_res.split("\n\n")) if rag_res else 0
-        all_ok &= log_test("RAG / PGVECTOR", True, f"Recherche exécutée en {rag_ms} ms (documents récupérés: {count_docs})")
+        all_ok &= log_test("RAG / PGVECTOR", True, f"Search completed in {rag_ms} ms (documents retrieved: {count_docs})")
     except Exception as e:
         all_ok &= log_test("RAG / PGVECTOR", False, f"SQL/pgvector error: {e}")
 
@@ -90,7 +90,7 @@ def run_e2e_suite():
         )
         aud_ms = int((time.time() - aud_t0) * 1000)
         aud_ok = bool(aud_resp and len(aud_resp) > 0)
-        all_ok &= log_test("MULTIMODAL AUDIO", aud_ok, f"Décodage Ogg Opus via {aud_model} en {aud_ms} ms")
+        all_ok &= log_test("MULTIMODAL AUDIO", aud_ok, f"Ogg Opus decoding via {aud_model} in {aud_ms} ms")
     except Exception as e:
         all_ok &= log_test("MULTIMODAL AUDIO", False, f"Audio pipeline error: {e}")
 
@@ -125,16 +125,16 @@ def run_e2e_suite():
         conn.close()
 
         sql_success = updated and double_vote_prevented
-        all_ok &= log_test("POSTGRES & FEEDBACK LOCK", sql_success, f"Cycle écriture + vote anti-doublon (ID test {interaction_id})")
+        all_ok &= log_test("POSTGRES & FEEDBACK LOCK", sql_success, f"Write cycle + duplicate-vote protection (test ID {interaction_id})")
     except Exception as e:
         all_ok &= log_test("POSTGRES & FEEDBACK LOCK", False, f"SQL error: {e}")
 
     print("==================================================")
     if all_ok:
-        print("✅ BILAN : tous les contrôles d'intégration configurés ont réussi")
-        print("Ce smoke test vérifie la connectivité, pas la qualité agronomique des réponses.")
+        print("✅ SUMMARY: all configured integration checks passed")
+        print("This smoke test checks connectivity, not agronomic answer quality.")
     else:
-        print("⚠️ BILAN : CERTAINS COMPOSANTS ONT ÉCHOUÉ")
+        print("⚠️ SUMMARY: SOME COMPONENTS FAILED")
     print("==================================================")
 
 if __name__ == "__main__":

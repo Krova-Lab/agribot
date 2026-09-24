@@ -114,7 +114,7 @@ def is_allowed_access(telegram_id: int, username: str | None = None) -> bool:
             set_user_role(telegram_id, "tester", username=username)
             places_restantes = max_pilot_users - (active_pilot_users + 1)
             uname = username.lstrip('@') if username else "None"
-            msg = f"🔔 Nouveau testeur enrôlé : @{uname} (ID: {telegram_id}). Places restantes : {places_restantes}/15"
+            msg = f"🔔 New tester enrolled: @{uname} (ID: {telegram_id}). Remaining places: {places_restantes}/15"
             notify_admin_async(msg)
             return True
         else:
@@ -222,7 +222,7 @@ def check_ingestor_rate_limit(telegram_id: int, max_per_window: int = 5, window_
         if count >= max_per_window:
             cur.close()
             conn.close()
-            return False, f"Plafond atteint ({max_per_window} fichiers / {window_seconds // 60} min). Veuillez patienter."
+            return False, f"Rate limit reached ({max_per_window} files / {window_seconds // 60} min). Please wait."
 
         cur.execute("UPDATE ingestor_reputation SET window_count = window_count + 1, last_action_ts = %s WHERE telegram_id = %s;", (now, telegram_id))
         conn.commit()
@@ -283,8 +283,8 @@ _SLIDING_WINDOW_CACHE = {} # telegram_id -> list of timestamps
 
 def check_user_rate_limit(telegram_id: int, max_per_minute: int = 5, max_per_day: int = 30) -> tuple[bool, str, int, int]:
     """
-    Vérifie les limites de débit :
-    - Limite glissante de sécurité : max 5 req / min
+    Check ingestion rate limits:
+    - Sliding security limit: up to 5 requests per minute
     - Plafond quotidien : max 30 req / jour
     Retourne (allowed, reason_code_or_msg, daily_count, remaining_today)
     """

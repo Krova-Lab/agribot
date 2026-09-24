@@ -100,16 +100,16 @@ def main():
     subline = "-" * 80
 
     print(line)
-    print(" 📊 TABLEAU DE BORD DE SUIVI DES INTERACTIONS & UTILISATEURS")
+    print(" 📊 INTERACTION & USER MONITORING DASHBOARD")
     print(line)
 
     # Section 1: diagnoses per day
-    print("\n📅 1. NOMBRE DE DIAGNOSTICS PAR JOUR")
+    print("\n📅 1. DIAGNOSES PER DAY")
     print(subline)
     if not daily_stats:
-        print("  Aucune donnée enregistrée dans la table interactions.")
+        print("  No data recorded in the interactions table.")
     else:
-        headers = ["Date", "Nombre de diagnostics", "Retours 👍", "Retours 👎"]
+        headers = ["Date", "Diagnoses", "Positive 👍", "Negative 👎"]
         widths = [14, 25, 14, 14]
 
         def fmt_row(row):
@@ -128,12 +128,12 @@ def main():
         print(sep)
 
     # Section 2: top users
-    print("\n🏆 2. TOP DES UTILISATEURS LES PLUS ACTIFS")
+    print("\n🏆 2. MOST ACTIVE USERS")
     print(subline)
     if not top_users:
-        print("  Aucun utilisateur trouvé.")
+        print("  No users found.")
     else:
-        headers = ["Rank", "User ID (Telegram ID)", "Interactions", "Retours (👍/👎)", "Dernière activité"]
+        headers = ["Rank", "User ID (Telegram ID)", "Interactions", "Feedback (👍/👎)", "Last activity"]
         widths = [6, 24, 14, 16, 20]
 
         def fmt_row_u(row):
@@ -158,7 +158,7 @@ def main():
         print(sep_u)
 
     # Section 3: feedback ratio
-    print("\n💬 3. RATIO DES RETOURS (FEEDBACK POSITIF VS NÉGATIF)")
+    print("\n💬 3. FEEDBACK RATIO (POSITIVE VS NEGATIVE)")
     print(subline)
     tot = feedback_stats.get('total_interactions', 0)
     rated = feedback_stats.get('rated_count', 0)
@@ -169,15 +169,15 @@ def main():
     if rated > 0:
         pos_pct = (pos / rated) * 100
         neg_pct = (neg / rated) * 100
-        ratio_str = f"{pos} : {neg} ({pos_pct:.1f}% Positif / {neg_pct:.1f}% Négatif)"
+        ratio_str = f"{pos} : {neg} ({pos_pct:.1f}% positive / {neg_pct:.1f}% negative)"
     else:
-        ratio_str = "Aucun feedback explicite reçu (0 / 0)"
+        ratio_str = "No explicit feedback received (0 / 0)"
 
-    print(f"  • Total d'interactions enregistrées : {tot}")
-    print(f"  • Interactions évaluées            : {rated} (non évaluées : {unrated})")
-    print(f"  • Retours positifs (👍)            : {pos}")
-    print(f"  • Retours négatifs (👎)            : {neg}")
-    print(f"  • Ratio Positif / Négatif          : {ratio_str}")
+    print(f"  • Total recorded interactions       : {tot}")
+    print(f"  • Rated interactions               : {rated} (unrated: {unrated})")
+    print(f"  • Positive feedback (👍)            : {pos}")
+    print(f"  • Negative feedback (👎)            : {neg}")
+    print(f"  • Positive / negative ratio        : {ratio_str}")
     print(line)
     print()
 

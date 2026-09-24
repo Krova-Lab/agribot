@@ -79,4 +79,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         ingest_file(sys.argv[1])
     else:
-        print("Usage: python ingest.py <chemin_vers_le_fichier.txt>")
+        print("Usage: python ingest.py <path_to_text_file>")

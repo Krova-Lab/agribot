@@ -37,7 +37,7 @@ def run():
 
         if has_pending_files():
             mode_str = "JOUR (Low-priority)" if daytime else "NUIT (Boosted)"
-            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Fichiers détectés. Lancement mode {mode_str}...")
+            print(f"[{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] Files detected. Starting {mode_str} mode...")
             
             # ionice prefix: idle during the day, normal at night
             io_cmd = ["ionice", "-c", "3"] if daytime else ["ionice", "-c", "2", "-n", "4"]

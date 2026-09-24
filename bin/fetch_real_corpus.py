@@ -29,8 +29,8 @@ for lang, titles in topics.items():
                         
                         with open(filename, 'w', encoding='utf-8') as f:
                             f.write(f"# {title.replace('_', ' ')}\n\n")
-                            f.write(f"**Langue**: {lang}\n**Source**: Corpus Encyclopédique\n\n")
+                            f.write(f"**Language**: {lang}\n**Source**: Encyclopedic Corpus\n\n")
                             f.write(content)
-                        print(f"Corpus téléchargé : {filename}")
+                        print(f"Corpus downloaded: {filename}")
         except Exception as e:
             print(f"Download error for {title} ({lang}): {e}")

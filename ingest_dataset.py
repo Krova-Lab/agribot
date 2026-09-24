@@ -50,7 +50,7 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
     # Case 2: instruction dataset (for example, 'instruction', 'output' / 'response')
     is_instruction = any(k in columns for k in ["instruction", "prompt", "question"])
 
-    print(f"[*] Exportation des fichiers dans '{target_dir}'...")
+    print(f"[*] Exporting files to '{target_dir}'...")
 
     with open(txt_out_path, "w", encoding="utf-8") as f_txt, \
          open(jsonl_out_path, "w", encoding="utf-8") as f_jsonl:
@@ -77,7 +77,7 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
             if text_chunk:
                 f_txt.write(text_chunk + "\n\n")
 
-    print(f"[✓] Terminé.")
+    print("[✓] Complete.")
     print(f"    - Texte RAG   : {txt_out_path}")
     print(f"    - Lignes JSON : {jsonl_out_path}")
 
@@ -85,8 +85,8 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
 def main():
     parser = argparse.ArgumentParser(description="Download and prepare a Hugging Face dataset for ingestion.")
     parser.add_argument("dataset", type=str, help="Nom ou chemin du dataset (ex: SeyhaLite/Translate-Khmer-Agriculture)")
-    parser.add_argument("--split", type=str, default="train", help="Split à télécharger (défaut: 'train')")
-    parser.add_argument("--output_dir", type=str, default="data_ingest", help="Dossier racine d'export (défaut: 'data_ingest')")
+    parser.add_argument("--split", type=str, default="train", help="Dataset split to download (default: 'train')")
+    parser.add_argument("--output_dir", type=str, default="data_ingest", help="Root export directory (default: 'data_ingest')")
 
     args = parser.parse_args()
     process_dataset(args.dataset, split=args.split, output_dir=args.output_dir)

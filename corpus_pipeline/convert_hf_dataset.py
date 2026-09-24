@@ -29,7 +29,7 @@ def process_and_export_huggingface_dataset(dataset_name: str, split: str = "trai
         for key, value in entry.items():
             if isinstance(value, str) and value.strip():
                 extracted_lines.append(f"{key.capitalize()} : {value.strip()}")
-            elif isinstance(value, dict): # Pour les schémas imbriqués type 'translation'
+            elif isinstance(value, dict):  # Handle nested schemas such as translation.
                 for sub_key, sub_val in value.items():
                     if isinstance(sub_val, str) and sub_val.strip():
                         extracted_lines.append(f"{sub_key.capitalize()} : {sub_val.strip()}")
@@ -52,11 +52,11 @@ def process_and_export_huggingface_dataset(dataset_name: str, split: str = "trai
             exported_count += 1
             
         if processed_count % 1000 == 0:
-            print(f"Lignes traitées : {processed_count} | Fiches extraites : {exported_count}")
+            print(f"Rows processed: {processed_count} | Records exported: {exported_count}")
 
-    print(f"--- Terminé ---")
-    print(f"Total parcouru : {processed_count}")
-    print(f"Total de fiches RAG générées : {exported_count}")
+    print("--- Complete ---")
+    print(f"Total rows processed: {processed_count}")
+    print(f"Total RAG records generated: {exported_count}")
 
 if __name__ == "__main__":
     process_and_export_huggingface_dataset("SeyhaLite/Translate-Khmer-Agriculture", split="train")

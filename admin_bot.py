@@ -169,7 +169,7 @@ async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chunks = cur.fetchone()[0]
         cur.execute("SELECT value FROM bot_settings WHERE key = 'access_mode'")
         mode = cur.fetchone()
-        current_mode = mode[0] if mode else "inconnu"
+        current_mode = mode[0] if mode else "unknown"
         cur.close()
         conn.close()
 
@@ -251,7 +251,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Rate-limit check (5 files / 10 minutes)
     allowed, err_msg = access_control.check_ingestor_rate_limit(user_id)
     if not allowed:
-        await update.message.reply_text(f"⏳ **Ralentissement requis** : {err_msg}")
+        await update.message.reply_text(f"⏳ **Rate limit reached**: {err_msg}")
         return
 
     doc = update.message.document
@@ -267,7 +267,7 @@ async def handle_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 text=f"🚨 **Security alert**: ingestor `{user_id}` was automatically revoked after 3 warnings."
             )
         else:
-            await update.message.reply_text(f"{t['bad_format']}\n⚠️ Avertissement {strikes}/3 avant suspension.")
+            await update.message.reply_text(f"{t['bad_format']}\n⚠️ Warning {strikes}/3 before suspension.")
         return
 
     # Check the size BEFORE any network call
@@ -325,7 +325,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Rate limiting for scans
     allowed, err_msg = access_control.check_ingestor_rate_limit(user_id)
     if not allowed:
-        await update.message.reply_text(f"⏳ **Ralentissement requis** : {err_msg}")
+        await update.message.reply_text(f"⏳ **Rate limit reached**: {err_msg}")
         return
 
     l = get_admin_lang(user_id)

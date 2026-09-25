@@ -43,7 +43,7 @@ Krova Agri is in an active pilot and hardening phase.
 | Soil and weather context | Integrated for user-shared coordinates; not inferred from a default city |
 | Moderation and interaction telemetry API | Implemented |
 | Khmer / French / English routing | Implemented |
-| Prompt and secret separation | Implemented |
+| Prompt and secret separation | Partial: private prompts are externalized, non-negotiable policy remains in code |
 | Wider public rollout and evaluation at scale | In progress |
 
 ## Architecture
@@ -69,6 +69,7 @@ flowchart LR
 ### Main components
 
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
+- `bot_prod.py` — isolated future-public-bot shell for wait-list onboarding, settings, and quota status. It uses a dedicated database and token; it does not change the pilot bot.
 - `llm_adapter.py` — task-specific model routing and bounded failover to GPT-4o.
 - `media_pipeline.py` — voice transcription or cautious image observation before retrieval.
 - `rag_search.py` — semantic retrieval of approved passages with verified source URLs, plus structured retrieval provenance.
@@ -76,6 +77,7 @@ flowchart LR
 - `ingest_files.py` / `ingest_daemon.py` — validation, chunking, embedding, and ingestion of approved documents.
 - `api_server.py` — REST API for telemetry, moderation, and controlled promotion of verified knowledge into the RAG pipeline.
 - `config/` — prompt loading and the community-safe prompt example. Private production prompts are intentionally excluded from Git.
+- `docs/production-bot.md` — setup and isolation rules for the future public bot.
 - `corpus_pipeline/` — optional preparation tools for turning source datasets into ingestible RAG documents.
 
 ### Models
@@ -112,7 +114,7 @@ The platform separates application code from operational knowledge and user data
 - `config/prompts.json` — private production configuration, ignored by Git.
 - `config/prompts.example.json` — anonymised configuration shipped for the open-source community.
 
-If private prompts are unavailable, the application falls back to the community example and then to a minimal safe configuration. This keeps public clones usable without exposing production intellectual property.
+If private prompts are unavailable, the application falls back to the community example and then to a minimal safe configuration. This keeps public clones usable without exposing production intellectual property. The response style and maintainable wording live in the prompt configuration; security, provenance, access, and safety invariants remain enforced in code.
 
 ## Quick start
 
@@ -154,7 +156,7 @@ KROVA_API_TOKEN=... uvicorn api_server:app --host 127.0.0.1 --port 8000
 python ingest_files.py
 ```
 
-For local development, `docker compose up -d postgres` can be used to start the PostgreSQL service defined in `docker-compose.yml`.
+For private local development, `docker compose up -d postgres` can be used to start PostgreSQL. The operational `schema.sql` dump is kept out of the public mirror; public deployments must provide an approved schema separately and apply the tracked migrations.
 
 ## Knowledge ingestion workflow
 

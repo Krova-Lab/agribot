@@ -1,12 +1,14 @@
 import secrets
 import time
 import os
-from typing import Optional, List
+import json
+from datetime import date
+from typing import Optional, List, Literal
 from fastapi import FastAPI, HTTPException, Depends, Header
 from pydantic import BaseModel, Field
 import psycopg2
 from psycopg2.extras import RealDictCursor
-from config.database import DB_HOST, DB_NAME, DB_USER, DB_PASSWORD, PROJECT_ROOT
+from config.database import DB_HOST, DB_NAME, DB_PORT, DB_USER, DB_PASSWORD, PROJECT_ROOT
 
 app = FastAPI(
     root_path="/agri-api",
@@ -30,7 +32,7 @@ def require_api_token(authorization: Optional[str] = Header(default=None)):
 def get_db():
     conn = psycopg2.connect(
         host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS,
-        cursor_factory=RealDictCursor
+        port=DB_PORT, connect_timeout=3, cursor_factory=RealDictCursor
     )
     try:
         yield conn
@@ -42,8 +44,8 @@ def get_db():
 class EnrollRequest(BaseModel):
     telegram_id: int
     username: Optional[str] = Field(default=None, max_length=128)
-    role: str = Field(default="tester", pattern="^(tester|user)$")
-    preferred_language: str = Field(default="km", max_length=8)
+    role: Literal["tester", "user"] = "tester"
+    preferred_language: Literal["km", "en", "fr"] = "km"
 
 class UserResponse(BaseModel):
     telegram_id: int
@@ -55,7 +57,7 @@ class UserResponse(BaseModel):
 class ReviewSubmission(BaseModel):
     interaction_id: int
     reviewer_telegram_id: Optional[int] = None
-    reviewer_name: str = Field(max_length=128)
+    reviewer_name: str = Field(max_length=100)
     status: str = Field(pattern="^(validated|corrected|flagged_rag|pending)$")
     corrected_diagnosis: Optional[str] = Field(default=None, max_length=20000)
     agronomist_notes: Optional[str] = Field(default=None, max_length=10000)
@@ -64,12 +66,27 @@ class PromoteRagRequest(BaseModel):
     interaction_id: int
     title: str = Field(max_length=256)
     crop: str = Field(default="General", max_length=128)
+    source_url: str = Field(min_length=12, max_length=2048)
+    source_publisher: Optional[str] = Field(default=None, max_length=256)
+    source_publication_date: Optional[date] = None
+    source_license: Optional[str] = Field(default=None, max_length=256)
+    source_locator: Optional[str] = Field(default=None, max_length=256)
 
 # --- Existing routes (health & users) ---
 
 @app.get("/api/v1/health")
 def health_check():
-    return {"status": "healthy"}
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS,
+            port=DB_PORT, connect_timeout=3,
+        )
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1;")
+        conn.close()
+        return {"status": "healthy", "database": "reachable"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database readiness check failed") from exc
 
 @app.get("/api/v1/users", response_model=List[UserResponse])
 def list_users(_: None = Depends(require_api_token), conn=Depends(get_db)):
@@ -245,7 +262,11 @@ def promote_corrected_to_rag(req: PromoteRagRequest, _: None = Depends(require_a
     if not record or not record.get("corrected_diagnosis"):
         raise HTTPException(status_code=404, detail="No corrected diagnosis was found for this interaction.")
 
-    # Create a Markdown record in rag_dropzone
+    if not req.source_url.startswith(("https://", "http://")):
+        raise HTTPException(status_code=422, detail="source_url must be an absolute HTTP(S) URL")
+
+    # Create a Markdown record and a provenance sidecar in rag_dropzone.
+    DROPZONE_DIR.mkdir(parents=True, exist_ok=True)
     file_name = f"krova_field_review_{secrets.token_hex(16)}.md"
     file_path = DROPZONE_DIR.resolve() / file_name
 
@@ -267,6 +288,18 @@ Date: {time.strftime('%Y-%m-%d')}
     try:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(doc_content)
+        file_path.with_suffix(".source.json").write_text(
+            json.dumps(
+                {
+                    "source_title": req.title,
+                    "source_url": req.source_url,
+                    "publisher": req.source_publisher,
+                    "publication_date": req.source_publication_date.isoformat() if req.source_publication_date else None,
+                    "license": req.source_license,
+                    "page_or_section": req.source_locator,
+                }, ensure_ascii=False, indent=2,
+            ), encoding="utf-8",
+        )
         return {"status": "promoted", "dropzone_file": file_name}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Dropzone write error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Dropzone write failed") from e

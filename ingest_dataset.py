@@ -12,7 +12,10 @@ import os
 import re
 import json
 import argparse
-from datasets import load_dataset
+try:
+    from datasets import load_dataset
+except ImportError:  # Optional corpus-preparation dependency.
+    load_dataset = None
 
 
 def sanitize_folder_name(name: str) -> str:
@@ -21,7 +24,9 @@ def sanitize_folder_name(name: str) -> str:
 
 
 def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "data_ingest"):
-    print(f"[*] Chargement du dataset '{dataset_name}' (split: {split})...")
+    if load_dataset is None:
+        raise RuntimeError("datasets is not installed; install requirements-ingestion.txt")
+    print(f"[*] Loading dataset '{dataset_name}' (split: {split})...")
     
     # 1. Download and load the dataset automatically
     try:
@@ -33,7 +38,7 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
     total_rows = len(ds)
     columns = ds.column_names
     print(f"[+] Dataset loaded successfully: {total_rows} rows.")
-    print(f"[+] Colonnes disponibles : {columns}")
+    print(f"[+] Available columns: {columns}")
 
     # Create the destination directory
     folder_name = sanitize_folder_name(dataset_name)
@@ -84,7 +89,7 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
 
 def main():
     parser = argparse.ArgumentParser(description="Download and prepare a Hugging Face dataset for ingestion.")
-    parser.add_argument("dataset", type=str, help="Nom ou chemin du dataset (ex: SeyhaLite/Translate-Khmer-Agriculture)")
+    parser.add_argument("dataset", type=str, help="Dataset name or path (for example: SeyhaLite/Translate-Khmer-Agriculture)")
     parser.add_argument("--split", type=str, default="train", help="Dataset split to download (default: 'train')")
     parser.add_argument("--output_dir", type=str, default="data_ingest", help="Root export directory (default: 'data_ingest')")
 

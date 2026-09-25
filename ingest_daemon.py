@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import time
 import os
+from config.database import PROJECT_ROOT
 import sys
 from datetime import datetime
 import subprocess
 
-DROPZONE = os.path.expanduser("~/agribot/rag_dropzone")
-INGEST_SCRIPT = os.path.expanduser("~/agribot/ingest_files.py")
+DROPZONE = str(PROJECT_ROOT / "rag_dropzone")
+INGEST_SCRIPT = str(PROJECT_ROOT / "ingest_files.py")
 PYTHON_BIN = sys.executable
 
 def is_daytime() -> bool:

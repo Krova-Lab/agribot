@@ -40,7 +40,7 @@ Telegram bot gateway
              Context-aware prompt assembly
                          |
                          v
-                 Gemini multimodal model
+                 Task-specific model adapter
                          |
                          v
              Khmer / French / English reply
@@ -54,7 +54,7 @@ Telegram bot gateway
 | Component | Technology | Responsibility |
 | --- | --- | --- |
 | Telegram gateway | `python-telegram-bot` | Text, voice, photo, language routing, feedback, and access control |
-| Inference adapter | `google-genai` | Multimodal generation through `gemini-3.6-flash` |
+| Inference adapter | `llm_adapter.py` | Task-specific generation with bounded provider fallback |
 | Embeddings | `gemini-embedding-001` | Semantic vectors for retrieval |
 | Vector database | PostgreSQL 16 + `pgvector` | RAG documents, interaction audit, and telemetry |
 | Document extraction | `pypdf`, `python-docx`, OCR tools | Convert approved source files to searchable text |
@@ -122,13 +122,13 @@ These directories contain local operational data and are excluded from Git.
 
 ```bash
 # Check the Telegram service (use the service name configured by the deployment)
-sudo systemctl status krova-agribot.service
+sudo systemctl status khmeragribot.service
 
 # Follow live logs
-journalctl -u krova-agribot.service -f
+journalctl -u khmeragribot.service -f
 
 # Restart after a code or configuration change
-sudo systemctl restart krova-agribot.service
+sudo systemctl restart khmeragribot.service
 
 # Ingest approved documents
 python3 ingest_files.py
@@ -154,6 +154,8 @@ docker compose up -d postgres
 ## 8. Current status and next steps
 
 The Telegram pilot, multimodal input flow, local RAG, soil and weather context,
-moderation API, and prompt separation are implemented. Current work focuses on
-field evaluation, Khmer terminology quality, retrieval evaluation, source
-provenance, observability, and broader pilot access.
+moderation API, and partial prompt separation are implemented. The future public
+bot currently provides isolated wait-list onboarding only; it is not yet the
+production assistant. Current work focuses on field evaluation, Khmer
+terminology quality, retrieval evaluation, source provenance, observability,
+and release automation.

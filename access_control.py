@@ -16,13 +16,13 @@ def notify_admin_async(message: str):
                 return
             url = f"https://api.telegram.org/bot{token}/sendMessage"
             requests.post(url, json={"chat_id": ADMIN_TELEGRAM_ID, "text": message}, timeout=5)
-        except Exception as e:
-            print(f"Admin notification error: {e}")
+        except Exception as exc:
+            print(f"Admin notification error: {type(exc).__name__}")
 
     try:
         threading.Thread(target=_send, daemon=True).start()
-    except Exception as e:
-        print(f"Admin notification thread error: {e}")
+    except Exception as exc:
+        print(f"Admin notification thread error: {type(exc).__name__}")
 
 DB_PASS = DB_PASSWORD
 
@@ -33,7 +33,8 @@ CACHE_TTL = 30
 
 def get_db_connection():
     return psycopg2.connect(
-        host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS
+        host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS,
+        connect_timeout=3,
     )
 
 def refresh_cache_if_needed(force: bool = False):
@@ -156,9 +157,14 @@ def get_user_language(telegram_id: int) -> str:
     user = _ROLES_CACHE.get(telegram_id)
     if not user:
         return "km"
-    return user.get("lang", "km")
+    language = user.get("lang", "km")
+    return "km" if language == "kh" else language if language in {"km", "en", "fr"} else "km"
 
 def set_user_language(telegram_id: int, lang: str):
+    if lang == "kh":
+        lang = "km"
+    if lang not in {"km", "en", "fr"}:
+        raise ValueError("Unsupported language")
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -230,8 +236,8 @@ def check_ingestor_rate_limit(telegram_id: int, max_per_window: int = 5, window_
         conn.close()
         return True, ""
     except Exception as e:
-        print(f"Rate-limit error: {e}")
-        return True, ""
+        print(f"Rate-limit error: {type(e).__name__}")
+        return False, "Rate limiting is temporarily unavailable. Please try again later."
 
 def record_ingestor_strike(telegram_id: int, max_strikes: int = 3) -> tuple[bool, int]:
     """Increment strikes. Disable the account when the error quota is exceeded."""
@@ -258,10 +264,10 @@ def record_ingestor_strike(telegram_id: int, max_strikes: int = 3) -> tuple[bool
         refresh_cache_if_needed(force=True)
         return is_banned, strikes
     except Exception as e:
-        print(f"Strike-recording error: {e}")
+        print(f"Strike-recording error: {type(e).__name__}")
         return False, 0
 
-def get_user_daily_count(telegram_id: int) -> int:
+def get_user_daily_count(telegram_id: int) -> int | None:
     """Return the user's interaction count for today (since midnight)."""
     try:
         conn = get_db_connection()
@@ -276,8 +282,8 @@ def get_user_daily_count(telegram_id: int) -> int:
         conn.close()
         return count
     except Exception as e:
-        print(f"Daily user-count error: {e}")
-        return 0
+        print(f"Daily user-count error: {type(e).__name__}")
+        return None
 
 _SLIDING_WINDOW_CACHE = {} # telegram_id -> list of timestamps
 
@@ -285,8 +291,8 @@ def check_user_rate_limit(telegram_id: int, max_per_minute: int = 5, max_per_day
     """
     Check ingestion rate limits:
     - Sliding security limit: up to 5 requests per minute
-    - Plafond quotidien : max 30 req / jour
-    Retourne (allowed, reason_code_or_msg, daily_count, remaining_today)
+    - Daily limit: max 30 requests per day
+    Returns (allowed, reason_code_or_msg, daily_count, remaining_today)
     """
     now = time.time()
     # 1. Sliding-window check (one minute)
@@ -295,10 +301,14 @@ def check_user_rate_limit(telegram_id: int, max_per_minute: int = 5, max_per_day
     if len(user_ts) >= max_per_minute:
         _SLIDING_WINDOW_CACHE[telegram_id] = user_ts
         daily_count = get_user_daily_count(telegram_id)
+        if daily_count is None:
+            return False, "rate_limit_unavailable", 0, 0
         return False, "minute_limit", daily_count, max(0, max_per_day - daily_count)
 
     # 2. Daily-limit check
     daily_count = get_user_daily_count(telegram_id)
+    if daily_count is None:
+        return False, "rate_limit_unavailable", 0, 0
     if daily_count >= max_per_day:
         return False, "daily_limit", daily_count, 0
 

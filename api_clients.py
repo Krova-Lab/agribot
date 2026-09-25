@@ -54,26 +54,38 @@ def identify_plant_plantnet(image_path_or_bytes, org_type="auto"):
     if not api_key:
         return {"error": "PLANTNET_API_KEY is not configured"}
 
-    url = f"https://my-api.plantnet.org/v2/identify/all?api-key={api_key}"
+    url = "https://my-api.plantnet.org/v2/identify/all"
     try:
         if isinstance(image_path_or_bytes, bytes):
             files = [('images', ('image.jpg', image_path_or_bytes, 'image/jpeg'))]
         else:
-            files = [('images', open(image_path_or_bytes, 'rb'))]
+            with open(image_path_or_bytes, 'rb') as image_file:
+                files = [('images', ('image.jpg', image_file, 'image/jpeg'))]
+                data = {'organs': [org_type]}
+                res = requests.post(url, params={'api-key': api_key}, files=files, data=data, timeout=8)
+                return _parse_plantnet_response(res)
 
         data = {'organs': [org_type]}
-        res = requests.post(url, files=files, data=data, timeout=8)
-        if res.status_code == 200:
-            best_match = res.json().get("results", [])[0]
-            species = best_match.get("species", {})
-            return {
-                "scientific_name": species.get("scientificNameWithoutAuthor"),
-                "common_names": species.get("commonNames", []),
-                "score": round(best_match.get("score", 0) * 100, 1)
-            }
+        res = requests.post(url, params={'api-key': api_key}, files=files, data=data, timeout=8)
+        return _parse_plantnet_response(res)
     except Exception as e:
-        print(f"Pl@ntNet error: {e}")
+        print(f"PlantNet error: {type(e).__name__}")
     return {}
+
+
+def _parse_plantnet_response(response):
+    if response.status_code != 200:
+        return {}
+    results = response.json().get("results", [])
+    if not results:
+        return {}
+    best_match = results[0]
+    species = best_match.get("species", {})
+    return {
+        "scientific_name": species.get("scientificNameWithoutAuthor"),
+        "common_names": species.get("commonNames", []),
+        "score": round(best_match.get("score", 0) * 100, 1),
+    }
 
 if __name__ == "__main__":
     # Test the fallback with a fictional coordinate or simulated outage

@@ -25,6 +25,7 @@ from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 
 async def post_init(application):
+    purge_media_cache()
     commands = [
         BotCommand("start", "Start bot"),
         BotCommand("quota", "Check limits"),
@@ -55,6 +56,22 @@ IMAGE_CACHE_DIR = os.path.join(BASE_DIR, "image_cache")
 AUDIO_CACHE_DIR = os.path.join(BASE_DIR, "audio_cache")
 os.makedirs(IMAGE_CACHE_DIR, exist_ok=True)
 os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
+MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(10 * 1024 * 1024)))
+MAX_AUDIO_BYTES = int(os.getenv("MAX_AUDIO_BYTES", str(5 * 1024 * 1024)))
+MEDIA_CACHE_RETENTION_SECONDS = int(os.getenv("MEDIA_CACHE_RETENTION_SECONDS", str(24 * 60 * 60)))
+Image.MAX_IMAGE_PIXELS = int(os.getenv("MAX_IMAGE_PIXELS", "20000000"))
+
+
+def purge_media_cache() -> None:
+    """Remove cached media older than the configured retention period."""
+    cutoff = time.time() - MEDIA_CACHE_RETENTION_SECONDS
+    for directory in (IMAGE_CACHE_DIR, AUDIO_CACHE_DIR):
+        for entry in os.scandir(directory):
+            try:
+                if entry.is_file() and entry.stat().st_mtime < cutoff:
+                    os.unlink(entry.path)
+            except OSError as exc:
+                logger.warning("Media cache cleanup failed for %s: %s", entry.path, type(exc).__name__)
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -62,7 +79,12 @@ class RedactSecretsFilter(logging.Filter):
     """Redact bot and model-provider credentials from log records."""
     def __init__(self, name=""):
         super().__init__(name)
-        self.secret_keys = ["TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY", "TELEGRAM_ADMIN_BOT_TOKEN", "AZURE_FOUNDRY_API_KEY"]
+        self.secret_keys = [
+            "TELEGRAM_TOKEN", "TELEGRAM_BOT_TOKEN", "KROVA_PROD_TELEGRAM_BOT_TOKEN",
+            "TELEGRAM_ADMIN_BOT_TOKEN", "GEMINI_API_KEY", "GOOGLE_API_KEY",
+            "AZURE_FOUNDRY_API_KEY", "KROVA_API_TOKEN", "DB_PASSWORD",
+            "PROD_DB_PASSWORD", "PLANTNET_API_KEY",
+        ]
 
     def filter(self, record: logging.LogRecord) -> bool:
         secrets = [os.getenv(k) for k in self.secret_keys if os.getenv(k)]
@@ -108,13 +130,13 @@ logger = logging.getLogger(__name__)
 PROMPTS = load_prompts()
 
 BUTTON_TEXTS = {
-    "kh": {"pos": "👍 ត្រឹមត្រូវ", "neg": "👎 មិនត្រឹមត្រូវ"},
+    "km": {"pos": "👍 ត្រឹមត្រូវ", "neg": "👎 មិនត្រឹមត្រូវ"},
     "fr": {"pos": "👍 Utile", "neg": "👎 À revoir"},
     "en": {"pos": "👍 Useful", "neg": "👎 Inaccurate"}
 }
 
 FEEDBACK_MSGS = {
-    "kh": {
+    "km": {
         "pos": "🙏 អរគុណសម្រាប់ការផ្ដល់មតិកែលម្អ!",
         "neg": "🙏 សូមអរគុណ យើងខ្ញុំនឹងកែលម្អចំណុចនេះ।"
     },
@@ -185,6 +207,9 @@ async def quota(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     daily_count = access_control.get_user_daily_count(telegram_id)
+    if daily_count is None:
+        await update.message.reply_text("⚠️ Usage information is temporarily unavailable. Please try again later.")
+        return
     max_daily = 30
     remaining = max(0, max_daily - daily_count)
 
@@ -258,7 +283,9 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Strict anti-flood rate limiting (5 requests/minute & 30 requests/day)
     allowed, reason, daily_count, remaining = access_control.check_user_rate_limit(telegram_id, max_per_minute=5, max_per_day=30)
     if not allowed:
-        if reason == "daily_limit":
+        if reason == "rate_limit_unavailable":
+            limit_msg = "⚠️ Usage limits are temporarily unavailable. Please try again later."
+        elif reason == "daily_limit":
             limit_msg = (
                 "⏳ <b>អ្នកបានប្រើប្រាស់អស់កម្រិតកំណត់ប្រចាំថ្ងៃហើយ (30/30)។</b>\n"
                 "សូមវិលត្រឡប់មកប្រើប្រាស់សារជាថ្មីនៅថ្ងៃស្អែក! អរគុណចំពោះការចូលរួម។\n\n"
@@ -282,12 +309,12 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     lang = detect_ui_lang(user_text)
     WAIT_MSGS = {
-        "kh": "⏳ កំពុងពិនិត្យទិន្នន័យ (Analyse RAG en cours)...",
+        "km": "⏳ កំពុងពិនិត្យទិន្នន័យ...",
         "fr": "⏳ Analyse agronomique RAG en cours...",
         "en": "⏳ Analyzing agronomic data (RAG in progress)..."
     }
     ERR_MSGS = {
-        "kh": "⚠️ សូមអភ័យទោស ប្រព័ន្ធមានបញ្ហាបច្ចេកទេសបន្តិច។",
+        "km": "⚠️ សូមអភ័យទោស ប្រព័ន្ធមានបញ្ហាបច្ចេកទេសបន្តិច។",
         "fr": "⚠️ Désolé, le système rencontre un problème technique momentané.",
         "en": "⚠️ Sorry, the system is experiencing a temporary technical issue."
     }
@@ -296,7 +323,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if has_voice:
         wait_text = "🎙️ កំពុងស្ដាប់ និងវិភាគសំឡេង (Écoute et analyse du vocal en cours)..."
     else:
-        wait_text = WAIT_MSGS.get(lang, WAIT_MSGS["kh"])
+        wait_text = WAIT_MSGS.get(lang, WAIT_MSGS["km"])
 
     status_msg = await message.reply_text(wait_text)
     t_start = time.time()
@@ -310,6 +337,9 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if has_photo:
         photo_obj = message.photo[-1]
+        if photo_obj.file_size and photo_obj.file_size > MAX_IMAGE_BYTES:
+            await status_msg.edit_text("⚠️ Image is too large. Please send a smaller photo.")
+            return
         media_file_id = photo_obj.file_id
         photo_file = await photo_obj.get_file()
         buf = io.BytesIO()
@@ -345,7 +375,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         try:
             plant_res = identify_plant_plantnet(media_bytes)
             if plant_res and "scientific_name" in plant_res:
-                s_name = plant_res.get("scientific_name", "Inconnue")
+                s_name = plant_res.get("scientific_name", "Unknown")
                 c_names = ", ".join(plant_res.get("common_names", []))
                 score = plant_res.get("score", 0)
                 plantnet_info = f"Pl@ntNet Identification: {s_name} ({c_names}) - Confidence: {score}%"
@@ -354,6 +384,9 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif has_voice:
         voice_obj = message.voice
+        if voice_obj.file_size and voice_obj.file_size > MAX_AUDIO_BYTES:
+            await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
+            return
         media_file_id = voice_obj.file_id
         voice_file = await voice_obj.get_file()
         buf = io.BytesIO()
@@ -378,7 +411,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         prepared = prepare_input(user_text, media_bytes, media_mime)
     except InputInterpretationError:
         logger.warning("Input interpretation failed: type=%s", "voice" if has_voice else "photo")
-        await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["kh"]))
+        await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["km"]))
         return
     user_text = prepared.user_text
     if has_voice:
@@ -451,7 +484,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - User Query: "{user_text if user_text else '[Voice Message]'}"
 
     Instructions:
-    - By default, answer briefly and practically: give the main conclusion and the next useful steps in a compact response. Do not append a bibliography, URL list, or full source inventory unless the user explicitly asks for sources, references, citations, or more detail.
+    - {PROMPTS.get("response_style", "Answer briefly and practically. Do not list sources unless the user asks for them.")}
     0. Source and location integrity:
        - Krova Agri is independent. Do not imply affiliation with CARDI, MAFF, or any other institution.
        - Do not attribute a recommendation to an institution from a document title alone. Name a source only when a specific, verifiable reference is available in the supplied context; otherwise say the source is unverified.
@@ -505,7 +538,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     total_ms = int((time.time() - t_start) * 1000)
 
     if not response_text:
-        await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["kh"]))
+        await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["km"]))
         return
 
     # Detect the final output language to align the feedback buttons
@@ -547,7 +580,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.error(f"SQL insert error: {e}")
 
     # Align button labels with the actual language of the generated response
-    btn_lbls = BUTTON_TEXTS.get(resp_lang, BUTTON_TEXTS["kh"])
+    btn_lbls = BUTTON_TEXTS.get(resp_lang, BUTTON_TEXTS["km"])
     keyboard = [
         [
             InlineKeyboardButton(btn_lbls["pos"], callback_data=f"fb_pos_{resp_lang}_{interaction_id}"),
@@ -596,10 +629,10 @@ async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     parts = data.split("_")
     val = 1 if parts[1] == "pos" else -1
-    lang = parts[2] if len(parts) >= 4 else "kh"
+    lang = parts[2] if len(parts) >= 4 else "km"
     interaction_id = parts[3] if len(parts) >= 4 else parts[-1]
 
-    msg = FEEDBACK_MSGS.get(lang, FEEDBACK_MSGS["kh"])["pos" if val == 1 else "neg"]
+    msg = FEEDBACK_MSGS.get(lang, FEEDBACK_MSGS["km"])["pos" if val == 1 else "neg"]
 
     try:
         if interaction_id and interaction_id != "None":

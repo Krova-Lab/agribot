@@ -54,11 +54,11 @@ def check_duplicate(file_hash: str, content_hash: str = None) -> tuple[bool, str
 def audit_document_content(text_sample: str, filename: str) -> dict:
     if not client:
         return {
-            "trust_score": 0.7,
+            "trust_score": 0.0,
             "content_year": None,
-            "detected_source": "Inconnue (No API Key)",
-            "status": "approved",
-            "reason": "Audit bypass"
+            "detected_source": "Unknown (missing audit credentials)",
+            "status": "pending",
+            "reason": "Document audit was not run because audit credentials are unavailable."
         }
 
     prompt = render_prompt(
@@ -77,15 +77,15 @@ def audit_document_content(text_sample: str, filename: str) -> dict:
         return {
             "trust_score": float(data.get("trust_score", 0.7)),
             "content_year": data.get("content_year"),
-            "detected_source": str(data.get("detected_source", "Inconnue"))[:100],
-            "status": "quarantine" if data.get("status") == "quarantine" else "approved",
+            "detected_source": str(data.get("detected_source", "Unknown"))[:100],
+            "status": "quarantine" if data.get("status") == "quarantine" else "pending",
             "reason": str(data.get("reason", "OK"))
         }
     except Exception as e:
         return {
-            "trust_score": 0.6,
+            "trust_score": 0.0,
             "content_year": None,
-            "detected_source": "Audit fallback",
-            "status": "approved",
-            "reason": f"Analysis error: {e}"
+            "detected_source": "Unknown (audit error)",
+            "status": "pending",
+            "reason": f"Document audit failed: {type(e).__name__}"
         }

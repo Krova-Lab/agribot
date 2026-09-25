@@ -1,7 +1,10 @@
 import os
 import hashlib
 from pathlib import Path
-from datasets import load_dataset
+try:
+    from datasets import load_dataset
+except ImportError:  # Optional corpus-preparation dependency.
+    load_dataset = None
 
 DROPZONE_DIR = Path(__file__).resolve().parent.parent / "rag_dropzone"
 DROPZONE_DIR.mkdir(parents=True, exist_ok=True)
@@ -10,6 +13,8 @@ def generate_hash(content: str) -> str:
     return hashlib.sha256(content.encode("utf-8")).hexdigest()[:16]
 
 def process_and_export_huggingface_dataset(dataset_name: str, split: str = "train"):
+    if load_dataset is None:
+        raise RuntimeError("datasets is not installed; install requirements-ingestion.txt")
     print(f"Downloading dataset {dataset_name} ({split})...")
     
     try:

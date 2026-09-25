@@ -64,6 +64,7 @@ def run_tests():
             print(f"❌ Response excerpt: {response[:150]}...")
 
     print(f"\n=== Result: {success_count}/{len(TEST_CASES)} tests passed ===")
+    return success_count == len(TEST_CASES)
 
 if __name__ == "__main__":
-    run_tests()
+    raise SystemExit(0 if run_tests() else 1)

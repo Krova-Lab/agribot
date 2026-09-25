@@ -19,6 +19,7 @@ import json
 import time
 import subprocess
 import requests
+from config.database import PROJECT_ROOT
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -26,7 +27,7 @@ load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file_
 
 ADMIN_TELEGRAM_ID = int(os.getenv("ADMIN_TELEGRAM_ID", "0"))
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or os.getenv("TELEGRAM_ADMIN_BOT_TOKEN")
-STATE_FILE = os.path.expanduser("~/agribot/watchdog_state.json")
+STATE_FILE = str(PROJECT_ROOT / "watchdog_state.json")
 
 SERVICES = [
     "krova-agribot.service",

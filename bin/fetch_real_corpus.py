@@ -2,7 +2,9 @@ import urllib.request
 import json
 import os
 
-DROPZONE = "/home/hermes/agribot/rag_dropzone"
+from config.database import PROJECT_ROOT
+
+DROPZONE = str(PROJECT_ROOT / "rag_dropzone")
 os.makedirs(DROPZONE, exist_ok=True)
 
 # List of key agronomic topics (diseases, crops)

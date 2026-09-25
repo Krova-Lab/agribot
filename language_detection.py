@@ -6,12 +6,12 @@ import re
 
 
 def detect_ui_lang(text: str) -> str:
-    """Return ``kh``, ``fr``, or ``en`` using script and French markers."""
+    """Return ``km``, ``fr``, or ``en`` using script and language markers."""
     if not text:
-        return "kh"
+        return "km"
 
     if re.search(r"[\u1780-\u17FF]", text):
-        return "kh"
+        return "km"
 
     lower_t = text.lower().strip()
     has_fr_accents = bool(re.search(r"[éèêëàâîïôùûç]", lower_t))
@@ -32,4 +32,4 @@ def detect_ui_lang(text: str) -> str:
     if re.search(r"[a-zA-Z]", text):
         return "en"
 
-    return "kh"
+    return "km"

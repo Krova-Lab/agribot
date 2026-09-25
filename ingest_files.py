@@ -4,12 +4,18 @@ import shutil
 import hashlib
 import psycopg2
 from PIL import Image
-import pytesseract
-import pdf2image
+try:
+    import pytesseract
+except ImportError:  # Optional ingestion dependency.
+    pytesseract = None
+try:
+    import pdf2image
+except ImportError:  # Optional ingestion dependency.
+    pdf2image = None
 from pypdf import PdfReader
 from google import genai
 from dotenv import load_dotenv
-from config.database import get_db_params
+from config.database import PROJECT_ROOT, get_db_params
 from source_metadata import load_source_manifest, move_source_manifest
 
 try:
@@ -17,7 +23,7 @@ try:
 except ImportError:
     docx = None
 
-env_path = os.path.expanduser("~/agribot/.env")
+env_path = PROJECT_ROOT / ".env"
 load_dotenv(dotenv_path=env_path)
 
 api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
@@ -25,10 +31,10 @@ client = genai.Client(api_key=api_key)
 
 DB_PARAMS = get_db_params()
 
-DROPZONE_DIR = os.path.expanduser("~/agribot/rag_dropzone")
-PROCESSED_DIR = os.path.expanduser("~/agribot/rag_processed")
-REJECTED_DIR = os.path.expanduser("~/agribot/rag_rejected")
-FAILED_DIR = os.path.expanduser("~/agribot/rag_failed")
+DROPZONE_DIR = PROJECT_ROOT / "rag_dropzone"
+PROCESSED_DIR = PROJECT_ROOT / "rag_processed"
+REJECTED_DIR = PROJECT_ROOT / "rag_rejected"
+FAILED_DIR = PROJECT_ROOT / "rag_failed"
 MAX_INGEST_BYTES = int(os.getenv("RAG_MAX_INGEST_BYTES", str(50 * 1024 * 1024)))
 MAX_PDF_PAGES = int(os.getenv("RAG_MAX_PDF_PAGES", "100"))
 MAX_EXTRACTED_CHARS = int(os.getenv("RAG_MAX_EXTRACTED_CHARS", "5000000"))
@@ -61,6 +67,8 @@ def perform_ocr_image(img_obj) -> str:
     """Run Tesseract OCR on a PIL image with eng+khm+fra support.
     Fall back to eng if the language combination fails.
     """
+    if pytesseract is None:
+        raise RuntimeError("OCR dependencies are not installed; install requirements-ingestion.txt")
     try:
         raw_text = pytesseract.image_to_string(img_obj, lang="eng+khm+fra")
         return sanitize_text(raw_text)
@@ -130,7 +138,9 @@ def extract_pages_from_file(filepath: str) -> list[str]:
         # Use OCR fallback if the native text is too short (< 150 characters)
         native_length = len("\n".join(pages).strip())
         if native_length < 150:
-            print(f"📄 Native PDF text insufficient ({native_length} chars < 150). Falling back to page-by-page OCR (pdf2image + Tesseract)...")
+            if pdf2image is None or pytesseract is None:
+                raise RuntimeError("PDF OCR dependencies are not installed; install requirements-ingestion.txt")
+            print(f"Native PDF text insufficient ({native_length} chars < 150). Falling back to page-by-page OCR.")
             try:
                 images = pdf2image.convert_from_path(
                     filepath, dpi=150, first_page=1, last_page=MAX_PDF_PAGES
@@ -339,7 +349,7 @@ def ingest_file(filepath: str):
         print(f"✅ [SUCCESS] {filename} indexed and moved to {PROCESSED_DIR}")
 
     except Exception as e:
-        print(f"\033[91m❌ [TRANSACTION FAILED] Error ingesting {filename}: {e}. Rolling back...\033[0m")
+        print(f"[TRANSACTION FAILED] Error ingesting {filename}: {type(e).__name__}. Rolling back...")
         try:
             conn.rollback()
         except Exception as rb_e:
@@ -352,6 +362,7 @@ def ingest_file(filepath: str):
 
         dest = os.path.join(FAILED_DIR, filename)
         shutil.move(filepath, dest)
+        move_source_manifest(filepath, FAILED_DIR)
         print(f"⚠️ [FAILED] {filename} was not indexed and was moved to {FAILED_DIR} for inspection.")
 
 def process_dropzone():

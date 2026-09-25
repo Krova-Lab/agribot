@@ -4,11 +4,11 @@ import psycopg2
 import os
 from google import genai
 from dotenv import load_dotenv
-from config.database import get_db_params
+from config.database import PROJECT_ROOT, get_db_params
 from config.prompt_loader import load_prompts, render_prompt
 
 # Load environment variables
-load_dotenv(os.path.expanduser("~/agribot/.env"))
+load_dotenv(PROJECT_ROOT / ".env")
 api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 

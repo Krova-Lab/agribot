@@ -27,4 +27,5 @@ def get_db_params() -> dict[str, str | None]:
         "password": DB_PASSWORD,
         "host": DB_HOST,
         "port": DB_PORT,
+        "connect_timeout": "3",
     }

@@ -1,0 +1,6 @@
+# Optional dependencies for corpus preparation and OCR ingestion.
+# Install these only on the dedicated ingestion worker, not on the Telegram runtime.
+pytesseract
+pdf2image
+trafilatura
+datasets

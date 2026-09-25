@@ -71,7 +71,7 @@ def run_e2e_suite():
         )
         vis_ms = int((time.time() - vis_t0) * 1000)
         img_ok = bool(vis_resp and len(vis_resp) > 0)
-        all_ok &= log_test("MULTIMODAL VISION", img_ok, f"Analyse {vis_model} en {vis_ms} ms")
+        all_ok &= log_test("MULTIMODAL VISION", img_ok, f"Analysis via {vis_model} in {vis_ms} ms")
     except Exception as e:
         all_ok &= log_test("MULTIMODAL VISION", False, f"Image pipeline error: {e}")
 
@@ -136,6 +136,7 @@ def run_e2e_suite():
     else:
         print("⚠️ SUMMARY: SOME COMPONENTS FAILED")
     print("==================================================")
+    return bool(all_ok)
 
 if __name__ == "__main__":
-    run_e2e_suite()
+    raise SystemExit(0 if run_e2e_suite() else 1)

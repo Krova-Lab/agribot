@@ -11,7 +11,7 @@ from source_policy import LEGACY_UNVERIFIED_TITLES
 api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 plantnet_key = os.getenv("PLANTNET_API_KEY")
 
-client = genai.Client(api_key=api_key)
+client = genai.Client(api_key=api_key) if api_key else None
 
 DB_PARAMS = get_db_params()
 PROMPTS = load_prompts()
@@ -27,17 +27,19 @@ def get_weather_history(lat, lon):
         if res.status_code == 200:
             return res.json().get("daily", {})
     except Exception as e:
-        print(f"Open-Meteo error: {e}")
+        print(f"Open-Meteo error: {type(e).__name__}")
     return {}
 
 def query_rag_knowledge(query_text, limit=2):
     """Query PostgreSQL vectors for relevant agricultural reference context."""
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key={api_key}"
+    if not api_key:
+        return []
+    url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent"
     payload = {
         "model": "models/gemini-embedding-001",
         "content": {"parts": [{"text": query_text}]},
     }
-    res = requests.post(url, json=payload, headers={'Content-Type': 'application/json'})
+    res = requests.post(url, json=payload, headers={'Content-Type': 'application/json', 'x-goog-api-key': api_key}, timeout=30)
     if res.status_code != 200:
         return []
     
@@ -46,8 +48,10 @@ def query_rag_knowledge(query_text, limit=2):
     conn = psycopg2.connect(**DB_PARAMS)
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT source_title, content FROM rag_documents "
+        "SELECT source_title, content, source_url FROM rag_documents "
         "WHERE COALESCE(source_title, '') <> ALL(%s) "
+        "AND audit_status = 'approved' AND provenance_status = 'verified' "
+        "AND NULLIF(BTRIM(source_url), '') IS NOT NULL "
         "ORDER BY embedding <=> %s::vector LIMIT %s",
         (list(LEGACY_UNVERIFIED_TITLES), query_embedding, limit)
     )
@@ -55,10 +59,12 @@ def query_rag_knowledge(query_text, limit=2):
     cursor.close()
     conn.close()
     
-    return [{"source": r[0], "content": r[1]} for r in results]
+    return [{"source": r[0], "content": r[1], "source_url": r[2]} for r in results]
 
 def analyze_crop_issue(image_path, lat, lon, user_text):
     """Orchestrate the complete diagnosis workflow (APIs + RAG + Gemini)."""
+    if client is None:
+        raise RuntimeError("Gemini credentials are not configured")
     print("1. Retrieving contextual data (weather and soil)...")
     weather = get_weather_history(lat, lon)
     from api_clients import get_soil_data_with_fallback

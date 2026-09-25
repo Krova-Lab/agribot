@@ -5,7 +5,10 @@ import re
 from pathlib import Path
 import httpx
 from pypdf import PdfReader
-import trafilatura
+try:
+    import trafilatura
+except ImportError:  # Optional corpus-preparation dependency.
+    trafilatura = None
 
 URLS = [
     'https://www.knowledgebank.irri.org/step-by-step-production/pre-planting',
@@ -62,6 +65,8 @@ def process_url(client: httpx.Client, url: str):
             text = extract_pdf(temp_pdf)
             temp_pdf.unlink(missing_ok=True)
         else:
+            if trafilatura is None:
+                raise RuntimeError("trafilatura is not installed; install requirements-ingestion.txt")
             downloaded = response.text
             text = trafilatura.extract(
                 downloaded,
@@ -73,7 +78,7 @@ def process_url(client: httpx.Client, url: str):
         if not text or len(text.strip()) < 250:
             # Reject texts that are too short or empty
             REJECTED_DIR.mkdir(parents=True, exist_ok=True)
-            (REJECTED_DIR / f"{doc_id}.txt").write_text(f"URL: {url}\nTrop court/vide", encoding="utf-8")
+            (REJECTED_DIR / f"{doc_id}.txt").write_text(f"URL: {url}\nToo short or empty", encoding="utf-8")
             return
 
         payload = {

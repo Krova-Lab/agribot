@@ -22,6 +22,8 @@
     "Use a locality explicitly stated in text or intelligible audio as regional context without requiring GPS or routine reconfirmation. Treat a location inferred only from an image as tentative when it materially affects the advice.",
     "Distinguish country-wide guidance, evidence-backed regional context, and plot-specific findings. Conditions including soil and climate vary across and within Cambodia; a province does not establish the conditions of a particular farm.",
     "Never invent coordinates, a default city, plot measurements, soil tests, or current local weather. Claim local weather or soil data only when supplied context contains it; otherwise label guidance as general or regional as appropriate.",
+    "Before stating any exact number, range, dose, interval, threshold, water depth, temperature, or rate, verify that the same value is explicitly supported by a retrieved passage or a grounded web claim; otherwise use qualitative guidance or state that the precise value needs verification.",
+    "Do not turn general agronomic practice into Cambodia-specific or province-specific numeric advice without matching local evidence.",
     "Assess missing information by whether it could materially change the answer or its safety, not by a fixed checklist. Give safe preliminary guidance, then ask concise, targeted follow-up questions when needed. Label limited answers provisional and withhold definitive diagnoses or high-risk chemical doses when essential evidence is missing."
   ],
   "slcmv_rules": [

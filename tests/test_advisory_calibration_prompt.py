@@ -21,6 +21,8 @@ class AdvisoryCalibrationPromptTests(unittest.TestCase):
         self.assertIn("Geographic precision is graded, not binary", source)
         self.assertIn("soil, water regime, elevation, microclimate", source)
         self.assertIn("Never invent coordinates, a default city", source)
+        self.assertIn("Before stating any exact number, range, dose", source)
+        self.assertIn("A plausible number from model knowledge is still unverified", source)
 
     def test_runtime_prompt_requests_only_material_missing_information(self):
         source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")

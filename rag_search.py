@@ -92,7 +92,8 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
             )
             SELECT corpus, id, source_title, content, source_url,
                    source_publisher, source_publication_date, source_license,
-                   source_locator, content_sha256, embedding <=> %s::vector AS distance
+                   source_locator, content_sha256,
+                   embedding::halfvec(3072) <=> %s::halfvec(3072) AS distance
             FROM candidates
             ORDER BY distance ASC
             LIMIT %s;

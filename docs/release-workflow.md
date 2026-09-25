@@ -20,7 +20,9 @@ are available; pull requests use deterministic tests and mocks.
 
 Before approval, validate at least one Khmer, English, and French example; text,
 voice, and image input; a request without a location; an uncertain diagnosis;
-an old source; and an explicit request for citations.
+an old source; an explicit request for citations; and the mobile-first response
+style. The default answer should be concise, while repeated explicit requests
+for more detail may create a narrow, confidence-scored response preference.
 
 ## Staging and production
 

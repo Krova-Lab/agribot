@@ -10,6 +10,59 @@ def user_requests_sources(text: str | None) -> bool:
     """Return whether the user explicitly asks for sources or more detail."""
     normalized = " ".join((text or "").lower().split())
     return any(term in normalized for term in SOURCE_REQUEST_TERMS)
+
+
+def load_detail_preference(telegram_id: int) -> str:
+    """Return the persisted response detail preference, defaulting to concise."""
+    try:
+        conn = psycopg2.connect(**DB_PARAMS)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT preference_value FROM user_preferences "
+            "WHERE telegram_id = %s AND preference_key = 'response_detail'",
+            (telegram_id,),
+        )
+        row = cur.fetchone()
+        cur.close()
+        conn.close()
+        return row[0] if row and row[0] in {"concise", "detailed"} else "concise"
+    except Exception as exc:
+        logger.warning("Response preference lookup failed: %s", type(exc).__name__)
+        return "concise"
+
+
+def update_detail_preference(telegram_id: int, requested_detail: bool) -> None:
+    """Persist a detailed preference only when recent explicit behaviour supports it."""
+    try:
+        conn = psycopg2.connect(**DB_PARAMS)
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT requested_detail, created_at FROM interactions "
+            "WHERE telegram_id = %s ORDER BY created_at DESC LIMIT 20",
+            (telegram_id,),
+        )
+        signals = [DetailSignal(bool(row[0]), row[1]) for row in cur.fetchall()]
+        inferred = infer_detail_preference(signals)
+        if inferred:
+            preference, confidence = inferred
+            evidence_count = sum(1 for signal in signals[:20] if signal.requested_detail)
+            cur.execute(
+                """INSERT INTO user_preferences
+                   (telegram_id, preference_key, preference_value, confidence, evidence_count, sample_count)
+                   VALUES (%s, 'response_detail', %s, %s, %s, %s)
+                   ON CONFLICT (telegram_id, preference_key) DO UPDATE SET
+                     preference_value = EXCLUDED.preference_value,
+                     confidence = EXCLUDED.confidence,
+                     evidence_count = EXCLUDED.evidence_count,
+                     sample_count = EXCLUDED.sample_count,
+                     updated_at = now()""",
+                (telegram_id, preference, confidence, evidence_count, len(signals[:20])),
+            )
+            conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as exc:
+        logger.warning("Response preference update failed: %s", type(exc).__name__)
 import access_control
 # TODO: REOPEN PUBLIC ACCESS FOR THE PILOT PHASE / GENERAL DEPLOYMENT
 
@@ -48,6 +101,7 @@ from web_research import research_web
 from telegram_format import to_telegram_plain_text
 from location_context import build_location_context, soil_source_for_audit
 from media_utils import enforce_download_limit, normalize_image
+from response_preferences import DetailSignal, infer_detail_preference, user_requests_more_detail
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DB_PARAMS = get_db_params()
@@ -433,6 +487,8 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_text = prepared.user_text
     if has_voice:
         lang = detect_ui_lang(user_text)
+    requested_detail = user_requests_more_detail(user_text)
+    detail_preference = load_detail_preference(telegram_id)
 
     # 3. Only request location-specific data when coordinates were explicitly shared.
     lat, lon, soil, weather, region_desc = build_location_context(
@@ -502,6 +558,8 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     Instructions:
     - {PROMPTS.get("response_style", "Answer briefly and practically. Do not list sources unless the user asks for them.")}
+    - Response detail preference: {detail_preference}. The default is concise and mobile-friendly. Use a fuller answer only when the user explicitly asks for detail or this preference has been inferred from repeated recent requests.
+    - Give the essential answer first. If the user may reasonably want to continue, end with a natural, optional invitation to ask for more detail or another question. Do not use the same closing mechanically when it would be awkward.
     0. Source and location integrity:
        - Krova Agri is independent. Do not imply affiliation with CARDI, MAFF, or any other institution.
        - Do not attribute a recommendation to an institution from a document title alone. Name a source only when a specific, verifiable reference is available in the supplied context; otherwise say the source is unverified.
@@ -529,7 +587,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
        - If audio is provided: Reply strictly in the language spoken in the voice message (French -> French, English -> English, Khmer -> Khmer).
        - If text is provided: If user writes French -> French. English -> English. Khmer -> Khmer.
        - If input is ambiguous or image-only without text -> DEFAULT TO KHMER.
-       - Output Format: Provide ONLY the final response to the user in concise plain text (prefer at most five short bullets). Do not use Markdown or HTML syntax, including **, # headings, or backticks. Do NOT display intermediate reasoning or notes.
+       - Output Format: Provide ONLY the final response to the user in concise plain text, optimized for a smartphone screen. Do not use Markdown or HTML syntax, including **, # headings, or backticks. Do NOT display intermediate reasoning or notes. Do not pad the answer with background information the user did not request.
     4. Isolation of Greetings and Tests:
        - If User Query is a greeting, connectivity test, or single generic word (e.g., "test", "hello", "bonjour", "salut ca va"):
          * Simply acknowledge politely in the detected language and state readiness to assist with Cambodian agriculture.
@@ -579,8 +637,8 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 media_file_id, media_file_size_bytes, detected_language,
                 latitude, longitude,
                 rag_ms, web_ms, llm_ms, total_ms, soil_source, model_used, confidence_score,
-                evidence_trace
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb)
+                evidence_trace, requested_detail
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
             RETURNING id;
         """, (
             telegram_id, current_role, bool(user_text), has_photo, has_voice, raw_text_entry, response_text[:100],
@@ -588,7 +646,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             lat if telegram_id in USER_LOCATIONS else None,
             lon if telegram_id in USER_LOCATIONS else None,
                 rag_ms, web_ms, llm_ms, total_ms, soil_source_for_audit(soil), model_used, 90,
-                json.dumps(evidence_trace, ensure_ascii=False)
+                json.dumps(evidence_trace, ensure_ascii=False), requested_detail
             ))
         interaction_id = cur.fetchone()[0]
         conn.commit()
@@ -596,6 +654,9 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         conn.close()
     except Exception as e:
         logger.error(f"SQL insert error: {e}")
+
+    if interaction_id is not None:
+        update_detail_preference(telegram_id, requested_detail)
 
     # Align button labels with the actual language of the generated response
     btn_lbls = BUTTON_TEXTS.get(resp_lang, BUTTON_TEXTS["km"])

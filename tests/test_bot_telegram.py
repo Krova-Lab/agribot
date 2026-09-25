@@ -109,8 +109,12 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("https://irri.org/rice", message.reply_text.await_args.args[0])
         self.assertNotIn("IRRI rice guide (Chapter 2, p. 8)", message.reply_text.await_args.args[0])
         self.assertNotIn("https://irri.org/water", message.reply_text.await_args.args[0])
-        audit_values = audit_cursor.execute.call_args.args[1]
-        trace = json.loads(audit_values[-1])
+        insert_call = next(
+            call for call in reversed(audit_cursor.execute.call_args_list)
+            if "INSERT INTO interactions" in call.args[0]
+        )
+        audit_values = insert_call.args[1]
+        trace = json.loads(audit_values[-2])
         self.assertEqual(trace["rag"]["status"], "ok")
         self.assertEqual(trace["web"]["status"], "grounded")
         self.assertIn("https://irri.org/water", trace["web"]["sources"][0]["url"])

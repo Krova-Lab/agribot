@@ -33,13 +33,14 @@ test and deployment checks described in `docs/release-workflow.md`.
    one canonical application service and turn legacy entry points into explicit
    compatibility wrappers or remove them after a usage check.
 
-2. **No durable session or user-memory boundary** exists yet. The bot keeps
-   only three recent database rows and an in-process coordinate dictionary.
-   Restarting the service loses locations; coordinates can also remain stale
-   indefinitely. Complexity: medium. Action: add explicit session turns,
-   structured user preferences, confidence and timestamps, and short-lived
-   location context. Never promote a diagnosis or location to durable memory
-   without a clear rule.
+2. **Durable session and user-memory boundaries remain incomplete.** The bot
+   still keeps only three recent rows for conversational context and an
+   in-process coordinate dictionary, but it now stores one narrowly scoped
+   response-detail preference with confidence and recent evidence counts.
+   Restarting the service still loses locations; coordinates can also remain
+   stale indefinitely. Complexity: medium. Action: add explicit session turns,
+   retention rules, and short-lived location context. Never promote a diagnosis
+   or location to durable memory without a clear rule.
 
 3. **The RAG contract is incomplete at document level.** Chunk rows contain
    provenance fields, but there is no first-class document/ingestion record,
@@ -133,8 +134,9 @@ test and deployment checks described in `docs/release-workflow.md`.
 2. Extract a canonical application service for context assembly, retrieval,
    web evidence, and model invocation. Make the legacy scripts call it or fail
    explicitly as retired tools.
-3. Add durable session turns and structured user preferences with explicit
-   retention and confidence rules.
+3. Extend the initial response-detail preference into durable session turns and
+   additional structured user preferences only after explicit retention and
+   confidence rules are defined.
 4. Add first-class document manifests and ingestion-run state, then add the
    missing vector index and freshness metadata.
 5. Improve Telegram UX: short first answers, optional detail/source follow-up,

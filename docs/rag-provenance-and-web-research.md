@@ -88,6 +88,7 @@ Back up the database, then apply
 `migrations/20260925_rag_stabilization.sql` **before** deploying the new bot
 code. The first migration is additive and keeps all old rows, but makes old
 rows without reviewed source metadata unavailable to retrieval. The second
-adds the vector index used by `rag_documents` so retrieval remains predictable
-as the verified corpus grows. Do not deploy the code first: it expects the
-migration's provenance and interaction-trace fields.
+adds the IVFFlat vector index used by `rag_documents` so retrieval remains
+predictable as the verified corpus grows. IVFFlat is intentional here because
+the existing Gemini embedding size is 3072 dimensions. Do not deploy the code
+first: it expects the migration's provenance and interaction-trace fields.

@@ -51,9 +51,10 @@ test and deployment checks described in `docs/release-workflow.md`.
 
 4. `rag_documents` has no vector index in the tracked schema, while
    `knowledge_base` does. Retrieval can therefore degrade into a sequential
-   scan as the verified corpus grows. Complexity: low to medium. Action:
-   create the matching HNSW index with the actual embedding dimension and add
-   an explain/latency check.
+   scan as the verified corpus grows. Because the current Gemini vectors have
+   3072 dimensions, the index must use IVFFlat rather than HNSW. Complexity:
+   low to medium. Action: create the matching IVFFlat index and add an
+   explain/latency check.
 
 5. Ingestion generates one embedding per chunk, without bounded retry,
    resumable batches, or a durable ingestion run. A database rollback protects

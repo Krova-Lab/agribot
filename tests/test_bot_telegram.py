@@ -38,6 +38,7 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
     def test_source_request_detection_is_explicit(self):
         self.assertFalse(bot_telegram.user_requests_sources("Comment traiter les feuilles jaunes du riz ?"))
         self.assertFalse(bot_telegram.user_requests_sources("Peux-tu me donner plus de détails ?"))
+        self.assertFalse(bot_telegram.user_requests_sources("Développe, sans afficher les sources."))
         self.assertTrue(bot_telegram.user_requests_sources("Peux-tu me donner les sources ?"))
 
     async def test_text_without_location_reaches_rag_model_and_telegram(self):

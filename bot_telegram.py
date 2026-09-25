@@ -8,6 +8,16 @@ SOURCE_REQUEST_TERMS = (
 def user_requests_sources(text: str | None) -> bool:
     """Return whether the user explicitly asks for sources or citations."""
     normalized = " ".join((text or "").lower().split())
+    if any(
+        phrase in normalized
+        for phrase in (
+            "sans source", "sans les sources", "sans afficher les sources",
+            "sans afficher de source", "sans références", "sans citation",
+            "without sources", "without citations", "do not show sources",
+            "don't show sources", "no sources",
+        )
+    ):
+        return False
     return any(term in normalized for term in SOURCE_REQUEST_TERMS)
 
 

@@ -47,6 +47,7 @@ from rag_search import format_rag_context, retrieve_rag
 from web_research import research_web
 from telegram_format import to_telegram_plain_text
 from location_context import build_location_context, soil_source_for_audit
+from media_utils import enforce_download_limit, normalize_image
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 DB_PARAMS = get_db_params()
@@ -269,6 +270,16 @@ async def handle_location(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await message.reply_text(confirm_msgs.get(user_lang, confirm_msgs["km"]), parse_mode="HTML")
 
+
+async def handle_unsupported_video(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Explain the current video limitation instead of silently ignoring it."""
+
+    if not update.message:
+        return
+    await update.message.reply_text(
+        "🎥 Video analysis is not enabled yet. Please send a photo or a voice message instead."
+    )
+
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     user = update.effective_user
@@ -346,6 +357,11 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await photo_file.download_to_memory(buf)
         media_bytes = buf.getvalue()
         media_file_size = len(media_bytes)
+        try:
+            enforce_download_limit(media_bytes, MAX_IMAGE_BYTES, "Image")
+        except ValueError:
+            await status_msg.edit_text("⚠️ Image is too large. Please send a smaller photo.")
+            return
         media_mime = "image/jpeg"
 
         # Save to disk for auditability and debugging
@@ -361,16 +377,12 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Process and optimise the image with PIL (Pillow)
         try:
-            buf.seek(0)
-            with Image.open(buf) as img:
-                img = img.convert("RGB")
-                if img.width > 1024 or img.height > 1024:
-                    img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
-                out_buf = io.BytesIO()
-                img.save(out_buf, format="JPEG", quality=85)
-                media_bytes = out_buf.getvalue()
-        except Exception as e:
-                logger.warning(f"PIL photo-processing error: {e}")
+            media_bytes = normalize_image(media_bytes, MAX_IMAGE_BYTES)
+            media_file_size = len(media_bytes)
+        except ValueError as exc:
+            logger.warning("Image normalization failed: %s", type(exc).__name__)
+            await status_msg.edit_text("⚠️ I could not read that image. Please send another photo.")
+            return
 
         try:
             plant_res = identify_plant_plantnet(media_bytes)
@@ -393,6 +405,11 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await voice_file.download_to_memory(buf)
         media_bytes = buf.getvalue()
         media_file_size = len(media_bytes)
+        try:
+            enforce_download_limit(media_bytes, MAX_AUDIO_BYTES, "Voice message")
+        except ValueError:
+            await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
+            return
         media_mime = "audio/ogg"
 
         # Save to disk for auditability and debugging
@@ -708,6 +725,9 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.PHOTO, handle_user_input))
     application.add_handler(MessageHandler(filters.VOICE, handle_user_input))
     application.add_handler(MessageHandler(filters.LOCATION, handle_location))
+    video_filter = getattr(filters, "VIDEO", None)
+    if video_filter is not None:
+        application.add_handler(MessageHandler(video_filter, handle_unsupported_video))
     application.add_handler(CallbackQueryHandler(handle_feedback))
     application.add_error_handler(error_handler)
     print("Krova Agri full RAG, vision, and voice stack is operational...")

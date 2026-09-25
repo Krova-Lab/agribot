@@ -84,7 +84,10 @@ made and on whether a newer source or grounded Web result supersedes it.
 ## Database deployment
 
 Back up the database, then apply
-`migrations/20260924_rag_provenance_and_trace.sql` **before** deploying the new
-bot code. The migration is additive and keeps all old rows, but makes old rows
-without reviewed source metadata unavailable to retrieval. Do not deploy the
-code first: it expects the migration's provenance and interaction-trace fields.
+`migrations/20260924_rag_provenance_and_trace.sql` and then
+`migrations/20260925_rag_stabilization.sql` **before** deploying the new bot
+code. The first migration is additive and keeps all old rows, but makes old
+rows without reviewed source metadata unavailable to retrieval. The second
+adds the vector index used by `rag_documents` so retrieval remains predictable
+as the verified corpus grows. Do not deploy the code first: it expects the
+migration's provenance and interaction-trace fields.

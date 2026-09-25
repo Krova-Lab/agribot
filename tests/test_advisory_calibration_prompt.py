@@ -30,6 +30,17 @@ class AdvisoryCalibrationPromptTests(unittest.TestCase):
         self.assertIn("label the answer provisional", source)
         self.assertIn("high-risk chemical dose", source)
 
+    def test_runtime_prompt_does_not_recycle_previous_assistant_output_as_evidence(self):
+        source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")
+        self.assertIn("previous assistant output is intentionally omitted", source)
+        self.assertIn("Recent user messages are conversational context only, not verified evidence", source)
+        self.assertNotIn("Prior Advisor Response:", source)
+
+    def test_runtime_prompt_preserves_user_facing_uncertainty(self):
+        source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")
+        self.assertIn("do not expose internal RAG wording", source)
+        self.assertIn("Give the useful general guidance first", source)
+
 
 if __name__ == "__main__":
     unittest.main()

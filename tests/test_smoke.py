@@ -28,10 +28,11 @@ class PilotSafeguardTests(unittest.TestCase):
         )
         self.assertIsNone(lat)
         self.assertIsNone(lon)
-        self.assertIn("Unavailable", soil)
-        self.assertIn("Unavailable", weather)
+        self.assertIn("No plot-specific soil lookup", soil)
+        self.assertIn("No plot-specific weather lookup", weather)
         self.assertIn("Cambodia", region)
         self.assertNotIn("Phnom Penh", region)
+        self.assertIn("Cambodia-wide baseline", region)
         self.assertIsNone(soil_source_for_audit(soil))
 
     def test_shared_coordinates_enable_local_data(self):

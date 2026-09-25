@@ -64,9 +64,9 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
              patch.object(bot_telegram, "build_location_context", return_value=(
                  None,
                  None,
-                 "Unavailable: no coordinates supplied",
-                 "Unavailable: no coordinates supplied",
-                 "Cambodia; no specific location confirmed",
+                 "No plot-specific soil lookup; Cambodia-wide agronomic context",
+                 "No plot-specific weather lookup; Cambodia-wide seasonal context",
+                 "Cambodia-wide baseline; no specific location confirmed",
              )) as location, \
              patch.object(bot_telegram, "retrieve_rag", return_value=SimpleNamespace(
                  status="ok",
@@ -96,13 +96,14 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         web_research.assert_called_once_with(message.text, "fr")
         llm.assert_called_once()
         prompt = llm.call_args.args[0]
-        self.assertIn("Cambodia; no specific location confirmed", prompt)
+        self.assertIn("Cambodia-wide baseline; no specific location confirmed", prompt)
         self.assertIn("[RAG SOURCE 1] IRRI rice guide", prompt)
         self.assertIn("Preserve exact values from cited passages", prompt)
         self.assertIn("Never average, widen, narrow, or silently merge conflicting values", prompt)
         self.assertIn("Treat publication date as evidence quality, not decoration", prompt)
         self.assertIn("Google Search found a Cambodia-relevant source", prompt)
         self.assertIn("Missing GPS or a missing province must never block", prompt)
+        self.assertIn("provide that Cambodia-wide baseline directly", prompt)
         self.assertEqual(message.reply_text.await_count, 2)
         self.assertIn("Réponse générale pour le Cambodge", message.reply_text.await_args.args[0])
         self.assertNotIn("https://irri.org/rice", message.reply_text.await_args.args[0])

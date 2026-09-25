@@ -25,9 +25,9 @@ def build_location_context(
         return (
             None,
             None,
-            "Unavailable: no coordinates supplied; do not infer plot soil properties.",
-            "Unavailable: no coordinates supplied; do not infer local weather.",
-            "Cambodia; no specific location confirmed. Consider any place named in the user's message as qualitative context.",
+            "No plot-specific soil lookup: no coordinates were supplied. Use Cambodia-wide agronomic context only; do not infer this plot's soil properties.",
+            "No plot-specific weather lookup: no coordinates were supplied. Use Cambodia-wide seasonal context only; do not claim current local weather.",
+            "Cambodia-wide baseline; no specific location confirmed. Use any place named in the user's message as qualitative regional context, without treating it as plot-level evidence.",
         )
 
     lat, lon = coordinates

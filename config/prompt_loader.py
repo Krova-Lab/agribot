@@ -26,7 +26,7 @@ MINIMAL_PROMPTS: dict[str, Any] = {
         "You are an agricultural assistant. Use the provided context to answer "
         "carefully and state when information is unavailable."
     ),
-    "response_style": "Answer briefly and practically. Do not list sources unless the user asks for them.",
+    "response_style": "Answer briefly and practically. Do not list sources unless the user explicitly asks for them. A request for more detail means a fuller explanation, not a source list.",
     "attached_media": {
         "none": "None",
         "image": "YES, image attached. Analyze only visible evidence.",

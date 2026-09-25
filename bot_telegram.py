@@ -2,12 +2,11 @@ USER_LOCATIONS = {}
 
 SOURCE_REQUEST_TERMS = (
     "source", "sources", "référence", "références", "citation", "citations",
-    "détail", "détails", "detail", "details", "en savoir plus",
-    "source?", "where did", "references",
+    "source?", "where did", "references", "quelle source", "quelles sources",
 )
 
 def user_requests_sources(text: str | None) -> bool:
-    """Return whether the user explicitly asks for sources or more detail."""
+    """Return whether the user explicitly asks for sources or citations."""
     normalized = " ".join((text or "").lower().split())
     return any(term in normalized for term in SOURCE_REQUEST_TERMS)
 
@@ -73,6 +72,8 @@ import time
 import asyncio
 import logging
 import json
+from html import escape
+from urllib.parse import urlparse
 import psycopg2
 from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
@@ -557,7 +558,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - User Query: "{user_text if user_text else '[Voice Message]'}"
 
     Instructions:
-    - {PROMPTS.get("response_style", "Answer briefly and practically. Do not list sources unless the user asks for them.")}
+    - {PROMPTS.get("response_style", "Answer briefly and practically. Do not list sources unless the user explicitly asks for them.")}
     - Response detail preference: {detail_preference}. The default is concise and mobile-friendly. Use a fuller answer only when the user explicitly asks for detail or this preference has been inferred from repeated recent requests.
     - Give the essential answer first. If the user may reasonably want to continue, end with a natural, optional invitation to ask for more detail or another question. Do not use the same closing mechanically when it would be awkward.
     0. Source and location integrity:
@@ -678,14 +679,27 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for source in rag_sources:
             details = [value for value in (source.publication_date, source.source_locator) if value]
             citation_details = f" ({'; '.join(details)})" if details else ""
-            source_lines.append(f"• {source.title}{citation_details} — {source.url}")
+            source_lines.append((source.title, citation_details, source.url))
         if web_result and web_result.status == "grounded":
             for source in web_result.sources:
-                source_lines.append(f"• {source.title} — {source.url}")
-        source_lines = list(dict.fromkeys(source_lines))[:5]
+                source_lines.append((source.title, "", source.url))
+        source_lines = list(dict.fromkeys(source_lines))[:3]
         source_labels = {"fr": "Sources consultées", "en": "Sources consulted", "km": "ប្រភពដែលបានពិនិត្យ"}
-        if source_lines:
-            response_text = f"{response_text.rstrip()}\n\n{source_labels.get(resp_lang, source_labels['km'])}:\n" + "\n".join(source_lines)
+        source_html = []
+        for title, citation_details, url in source_lines:
+            parsed_url = urlparse(url or "")
+            if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+                continue
+            label = f"{title}{citation_details}".strip() or parsed_url.netloc
+            source_html.append(f"• <a href=\"{escape(url, quote=True)}\">{escape(label)}</a>")
+        if source_html:
+            response_text = (
+                f"{escape(to_telegram_plain_text(response_text), quote=False)}\n\n"
+                f"<b>{escape(source_labels.get(resp_lang, source_labels['km']))}</b>\n"
+                + "\n".join(source_html)
+            )
+            await message.reply_text(response_text, reply_markup=reply_markup, parse_mode="HTML")
+            return
     await message.reply_text(to_telegram_plain_text(response_text), reply_markup=reply_markup)
 
 async def handle_feedback(update: Update, context: ContextTypes.DEFAULT_TYPE):

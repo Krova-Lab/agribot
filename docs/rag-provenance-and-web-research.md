@@ -48,7 +48,8 @@ RAG retrieval is limited to rows with `audit_status = 'approved'`,
 chunk carries its database ID, corpus, content hash, source title, URL, publisher,
 publication date, licence, and vector distance into the interaction audit trace.
 Source references are available in the Telegram reply when the user explicitly
-asks for sources or more detail. PDF extraction keeps
+asks for sources, references, or citations. A request for more detail alone
+does not trigger a source list. PDF extraction keeps
 page boundaries and records the one-based PDF page (or page range) for each chunk;
 an optional sidecar locator such as a chapter or printed page range is retained
 alongside it. For non-paginated sources, supply the best verifiable section in the

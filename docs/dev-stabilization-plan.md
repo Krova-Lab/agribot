@@ -32,9 +32,9 @@ This checklist tracks the work required before creating the production bot. The 
 
 - [x] Keep provenance-verified documents and reject duplicates without increasing the corpus.
 - [x] Keep the legacy corpus optional so the clean production schema can omit it.
-- [ ] Bootstrap a persistent `krova_dev` database from the current schema and migrations.
-- [ ] Re-ingest a small provenance-complete evaluation corpus into `krova_dev`.
-- [ ] Test ingestion -> validation -> embedding -> retrieval -> grounded response end to end.
+- [x] Bootstrap a persistent `krova_dev` database from the current schema and migrations.
+- [x] Re-ingest a small provenance-complete evaluation corpus into `krova_dev`.
+- [x] Test ingestion -> validation -> embedding -> retrieval -> grounded response end to end.
 - [ ] Add retrieval quality checks for source relevance, publication date, local applicability, and no-source behaviour.
 - [ ] Freeze the development schema and migration order before creating production.
 

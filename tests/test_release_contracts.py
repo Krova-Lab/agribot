@@ -18,6 +18,8 @@ class ReleaseContractTests(unittest.TestCase):
         if "Setup Database Schema" in workflow:
             self.assertIn("ON_ERROR_STOP=1", workflow)
             self.assertIn("test -f schema.sql", workflow)
+            self.assertIn("migrations/20260925_response_preferences.sql", workflow)
+            self.assertIn("migrations/20260929_request_rate_limits.sql", workflow)
 
     def test_schema_and_rag_contract_use_the_same_embedding_dimension(self):
         contract = (ROOT / "migrations/20260927_rag_schema_contract.sql").read_text(

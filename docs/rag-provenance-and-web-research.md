@@ -116,6 +116,8 @@ made and on whether a newer source or grounded Web result supersedes it.
 
 Back up the database, then apply
 `migrations/20260924_rag_provenance_and_trace.sql` and then
+`migrations/20260925_response_preferences.sql` and
+`migrations/20260929_request_rate_limits.sql`, followed by
 `migrations/20260925_rag_stabilization.sql`, followed by
 `migrations/20260927_rag_schema_contract.sql` **before** deploying the new bot
 code. The first migration is additive and keeps all old rows, but makes old

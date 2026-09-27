@@ -50,6 +50,11 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertNotIn("raw_user_text", source)
         self.assertNotIn("media_file_id", source)
 
+    def test_independent_rag_and_web_lookups_are_parallelised(self):
+        source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")
+        self.assertIn("asyncio.to_thread", source)
+        self.assertIn("asyncio.gather", source)
+
 
 if __name__ == "__main__":
     unittest.main()

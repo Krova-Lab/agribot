@@ -16,7 +16,7 @@ This checklist tracks the work required before creating the production bot. The 
 - [x] Verify that image and voice cache files are bounded by the configured retention period and cleaned at startup and during active traffic.
 - [x] Add a non-destructive report for sessions older than the configured retention threshold.
 - [x] Document that old-session deletion or anonymisation is not automatic until the retention period and review policy are approved.
-- [ ] Decide the final retention policy for raw text, Telegram media identifiers, evidence traces, and derived metrics.
+- [x] Document the development and initial-pilot retention baseline for raw text, media identifiers, evidence traces, and derived metrics.
 - [ ] Add an explicit, reviewed maintenance command for the approved deletion/anonymisation policy.
 - [ ] Decide whether video support should remain disabled or receive a bounded cache and processing path.
 
@@ -42,7 +42,7 @@ This checklist tracks the work required before creating the production bot. The 
 
 - [ ] Full unit/integration suite green on the persistent development database.
 - [ ] Manual Telegram matrix green for text, photo, voice, no-location, explicit location, source request, fallback, and provider outage.
-- [ ] Backup and restore rehearsal completed.
+- [x] Backup and restore rehearsal completed against the pilot database.
 - [ ] Documentation matches the tested state.
 - [ ] Only after the above: prepare a separate production branch/database/bot and keep onboarding as a final task.
 

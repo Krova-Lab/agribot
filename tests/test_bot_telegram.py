@@ -123,6 +123,32 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         progress.delete.assert_awaited_once()
         self.assertNotIn(user.id, bot_telegram.USER_LOCATIONS)
 
+    async def test_oversized_text_is_rejected_before_provider_calls(self):
+        user = SimpleNamespace(id=12346, username="long-question")
+        message = SimpleNamespace(
+            text="x" * (bot_telegram.MAX_USER_TEXT_CHARS + 1),
+            caption=None,
+            photo=None,
+            voice=None,
+            reply_text=AsyncMock(),
+        )
+        update = SimpleNamespace(effective_user=user, message=message)
+        with patch.object(bot_telegram.access_control, "is_allowed_access", return_value=True), \
+             patch.object(bot_telegram.access_control, "check_user_rate_limit", return_value=(True, "", 0, 30)), \
+             patch.object(bot_telegram, "retrieve_rag") as rag, \
+             patch.object(bot_telegram, "ask_llm") as llm:
+            await bot_telegram.handle_user_input(update, SimpleNamespace())
+        message.reply_text.assert_awaited_once()
+        rag.assert_not_called()
+        llm.assert_not_called()
+
+    async def test_video_path_is_explicitly_bounded(self):
+        message = SimpleNamespace(reply_text=AsyncMock())
+        update = SimpleNamespace(message=message)
+        await bot_telegram.handle_unsupported_video(update, SimpleNamespace())
+        message.reply_text.assert_awaited_once()
+        self.assertIn("not enabled", message.reply_text.await_args.args[0])
+
 
 if __name__ == "__main__":
     unittest.main()

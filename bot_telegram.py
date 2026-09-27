@@ -588,26 +588,44 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         USER_LOCATIONS.get(telegram_id), get_soil_data_with_fallback, get_weather_history
     )
 
-    # 4. Dynamic semantic RAG through pgvector
-    rag_start = time.monotonic()
-    rag_telemetry: dict = {}
-    rag_result = retrieve_rag(prepared.retrieval_query, limit=3, telemetry=rag_telemetry) if prepared.retrieval_query else None
+    # 4. Run independent evidence lookups concurrently. The individual
+    # timings remain separate while total latency approaches the slower lookup.
+    async def run_rag_lookup():
+        started = time.monotonic()
+        rag_telemetry: dict = {}
+        result = (
+            await asyncio.to_thread(
+                retrieve_rag, prepared.retrieval_query, limit=3, telemetry=rag_telemetry
+            )
+            if prepared.retrieval_query
+            else None
+        )
+        return result, rag_telemetry, int((time.monotonic() - started) * 1000)
+
+    async def run_web_lookup():
+        started = time.monotonic()
+        web_telemetry: dict = {}
+        result = (
+            await asyncio.to_thread(
+                research_web, prepared.retrieval_query, lang, telemetry=web_telemetry
+            )
+            if prepared.retrieval_query
+            else None
+        )
+        return result, web_telemetry, int((time.monotonic() - started) * 1000)
+
+    (rag_result, rag_telemetry, rag_ms), (web_result, web_telemetry, web_ms) = await asyncio.gather(
+        run_rag_lookup(), run_web_lookup()
+    )
     rag_sources = rag_result.sources if rag_result else ()
     rag_context = format_rag_context(rag_sources)
     if not rag_context:
         rag_context = PROMPTS["fallback_rag_context"]
-    rag_ms = int((time.monotonic() - rag_start) * 1000)
     telemetry["timings_ms"]["rag"] = rag_ms
-    telemetry["rag"] = rag_telemetry
-
-    # Perform a grounded web check for substantive agriculture questions. The
-    # Gemini grounding metadata is retained even when another model writes the reply.
-    web_start = time.monotonic()
-    web_telemetry: dict = {}
-    web_result = research_web(prepared.retrieval_query, lang, telemetry=web_telemetry) if prepared.retrieval_query else None
-    web_ms = int((time.monotonic() - web_start) * 1000)
     telemetry["timings_ms"]["web"] = web_ms
+    telemetry["rag"] = rag_telemetry
     telemetry["web"] = web_telemetry
+    # Gemini grounding metadata is retained even when another model writes the reply.
     web_context = web_result.prompt_context() if web_result else ""
 
     # 5. Recent user context. Previous assistant output is deliberately excluded:

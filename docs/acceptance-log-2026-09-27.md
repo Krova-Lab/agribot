@@ -33,6 +33,11 @@ The development bot was tested through the authorized Telegram test account:
 - A text question with an explicit location (`Prey Veng, Cambodia`) used that
   location in the answer, provided a Cambodia-relevant baseline, and asked for
   the rice growth stage before offering more tailored guidance.
+- A Khmer `.wav` audio file sent as a Telegram document was accepted after the
+  audio-attachment handler was deployed. The bot downloaded and transcribed
+  the file, then returned a Khmer response instead of silently ignoring the
+  document. This validates the common-audio-file path; a native Telegram voice
+  note still needs a separate live check.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
@@ -40,8 +45,9 @@ was in English.
 
 ## Remaining release checks
 
-The full Telegram matrix is still open for photo, voice, fallback, and
-provider-outage cases. Explicit location, no-location, and source-request
-cases passed this acceptance pass. The unit/integration suite and the live
-pilot smoke checks are green, but the production gate also requires a broader
-labelled retrieval set and a frozen migration sequence.
+The full Telegram matrix is still open for photo, native voice-note, fallback,
+and provider-outage cases. Common audio-file handling, explicit location,
+no-location, and source-request cases passed this acceptance pass. The
+unit/integration suite and the live pilot smoke checks are green, but the
+production gate also requires a broader labelled retrieval set and a frozen
+migration sequence.

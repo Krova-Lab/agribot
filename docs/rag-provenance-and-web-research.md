@@ -95,12 +95,15 @@ made and on whether a newer source or grounded Web result supersedes it.
 
 Back up the database, then apply
 `migrations/20260924_rag_provenance_and_trace.sql` and then
-`migrations/20260925_rag_stabilization.sql` **before** deploying the new bot
+`migrations/20260925_rag_stabilization.sql`, followed by
+`migrations/20260927_rag_schema_contract.sql` **before** deploying the new bot
 code. The first migration is additive and keeps all old rows, but makes old
 rows without reviewed source metadata unavailable to retrieval. The second
 adds HNSW indexes over half-precision expressions for both vector corpora so
 retrieval remains predictable as the verified corpus grows. This representation
 is intentional because the existing Gemini embedding size is 3072 dimensions,
 above the standard vector index limit. The stored vectors are not rewritten.
-Do not deploy the code first: it expects the migration's provenance and
-interaction-trace fields.
+The final migration fails fast if either vector column is not `vector(3072)`,
+which keeps fresh databases and existing deployments aligned with the active
+embedding contract. Do not deploy the code first: it expects the migration's
+provenance and interaction-trace fields.

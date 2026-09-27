@@ -20,6 +20,11 @@ unrelated control query. The current fixture is intentionally small; the
 threshold must be re-evaluated after more approved crops, regions, and source
 types are ingested.
 
+The same checks are reproducible with `python bin/evaluate_rag.py`. The current
+approved fixture returns two ranked passages from one canonical WorldFish URL;
+the evaluator records both passage count and unique-source count so this does
+not get mistaken for two independent sources.
+
 ## Telegram checks
 
 The development bot was tested through the authorized Telegram test account:
@@ -43,6 +48,8 @@ The development bot was tested through the authorized Telegram test account:
   called Telegram `getFile`, downloaded the file, ran the transcription route,
   and returned a Khmer answer. This confirms the audio-object path as well as
   the document path.
+- A native Telegram voice note was accepted by the deployed service. The bot
+  downloaded the `.ogg` voice payload, transcribed it, and returned a response.
 - A fresh photo-only Telegram message was accepted after the media-routing
   fix. The service saved the image, ran the vision route, sent the final
   response, and did not enter the audio-transcription path.
@@ -56,8 +63,8 @@ was in English.
 
 ## Remaining release checks
 
-The full Telegram matrix is still open for native voice-note and a complete
-provider-outage simulation. Photo handling, common audio-file handling,
+The full Telegram matrix is still open for a complete
+provider-outage simulation. Photo handling, native voice-note, common audio-file handling,
 explicit location, no-location, source-request, and controlled model-failover
 cases passed this acceptance pass. The unit/integration suite and the live
 pilot smoke checks are green, but the production gate also requires a broader

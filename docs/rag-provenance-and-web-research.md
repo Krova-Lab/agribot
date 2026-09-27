@@ -47,8 +47,11 @@ RAG retrieval is limited to rows with `audit_status = 'approved'`,
 `provenance_status = 'verified'`, and a non-empty `source_url`. Each retrieved
 chunk carries its database ID, corpus, content hash, source title, URL, publisher,
 publication date, licence, and vector distance into the interaction audit trace.
-The SQL retrieval step keeps at most two chunks per canonical source URL so that
-the response context is not dominated by overlapping passages from one document.
+The SQL retrieval step keeps at most `RAG_MAX_CHUNKS_PER_SOURCE` chunks per
+canonical source URL (default: two) so that the response context is not
+dominated by overlapping passages from one document. The limit is configurable
+for evaluation, but should not be increased in production without checking
+latency, answer quality, and source diversity.
 It still orders the final candidates by cosine distance; lower distance means a
 closer embedding match, not proof that the passage supports every claim in the
 answer. The model must compare the passage itself with the claim before treating
@@ -85,6 +88,19 @@ the conflict and uncertainty rather than give a falsely precise answer.
 Retrieval quality should be evaluated with a small labelled question set before
 changing chunk size, embedding model, or ranking thresholds. A smaller distance
 is useful for comparison but must not be treated as a universal confidence score.
+
+Run the small labelled regression set against the configured development
+database before changing `RAG_MAX_DISTANCE`, chunking, or the embedding model:
+
+```bash
+python bin/evaluate_rag.py
+```
+
+The fixture intentionally contains one positive case and two no-source cases.
+It is a guardrail for provenance filtering and off-topic rejection, not a
+representative measure of production-wide retrieval quality. Extend it with
+reviewed questions and expected sources as the approved corpus grows; do not
+run mass ingestion merely to make this fixture pass.
 
 Publication date is part of evidence assessment, not only citation metadata. Older
 documents may remain useful for stable agronomic methods, definitions, or historical

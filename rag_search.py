@@ -18,6 +18,7 @@ api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 client = genai.Client(api_key=api_key)
 DB_PARAMS = get_db_params()
 DEFAULT_MAX_DISTANCE = float(os.getenv("RAG_MAX_DISTANCE", "0.32"))
+DEFAULT_MAX_CHUNKS_PER_SOURCE = int(os.getenv("RAG_MAX_CHUNKS_PER_SOURCE", "2"))
 
 
 @dataclass(frozen=True)
@@ -74,6 +75,9 @@ def retrieve_rag(
         max_distance = DEFAULT_MAX_DISTANCE
         if not 0 < max_distance <= 2:
             raise ValueError("RAG_MAX_DISTANCE must be greater than 0 and no more than 2")
+        max_chunks_per_source = DEFAULT_MAX_CHUNKS_PER_SOURCE
+        if max_chunks_per_source < 1:
+            raise ValueError("RAG_MAX_CHUNKS_PER_SOURCE must be at least 1")
         embedding_start = time.monotonic()
         res = client.models.embed_content(model="models/gemini-embedding-001", contents=query)
         embedding_ms = int((time.monotonic() - embedding_start) * 1000)
@@ -134,12 +138,12 @@ def retrieve_rag(
                    source_publisher, source_publication_date, source_license,
                    source_locator, content_sha256, distance
             FROM diversified
-            WHERE source_rank <= 2
+            WHERE source_rank <= %s
               AND distance <= %s
             ORDER BY distance ASC, id ASC
             LIMIT %s;
             """,
-            (query_vector, max_distance, limit),
+            (query_vector, max_chunks_per_source, max_distance, limit),
         )
         rows = cur.fetchall()
         query_ms = int((time.monotonic() - search_start) * 1000)
@@ -163,6 +167,8 @@ def retrieve_rag(
             "embedding_ms": embedding_ms,
             "query_ms": query_ms,
             "source_count": len(sources),
+            "unique_source_count": len({source.url for source in sources}),
+            "max_chunks_per_source": max_chunks_per_source,
             "max_distance": max_distance,
         }
         if sources:

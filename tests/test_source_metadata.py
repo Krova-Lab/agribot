@@ -56,8 +56,8 @@ class SourceMetadataTests(unittest.TestCase):
             target = root / "rejected" / "guide_duplicate.pdf"
             target.parent.mkdir()
             move_source_manifest(document, target.parent, target)
-        self.assertFalse(source_manifest_path(document).exists())
-        self.assertTrue(source_manifest_path(target).exists())
+            self.assertFalse(source_manifest_path(document).exists())
+            self.assertTrue(source_manifest_path(target).exists())
 
 
 if __name__ == "__main__":

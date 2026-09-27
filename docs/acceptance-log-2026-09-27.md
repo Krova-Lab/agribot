@@ -43,6 +43,9 @@ The development bot was tested through the authorized Telegram test account:
   called Telegram `getFile`, downloaded the file, ran the transcription route,
   and returned a Khmer answer. This confirms the audio-object path as well as
   the document path.
+- A fresh photo-only Telegram message was accepted after the media-routing
+  fix. The service saved the image, ran the vision route, sent the final
+  response, and did not enter the audio-transcription path.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
@@ -50,9 +53,9 @@ was in English.
 
 ## Remaining release checks
 
-The full Telegram matrix is still open for photo, native voice-note, fallback,
-and provider-outage cases. Common audio-file handling, explicit location,
-no-location, and source-request cases passed this acceptance pass. The
-unit/integration suite and the live pilot smoke checks are green, but the
+The full Telegram matrix is still open for native voice-note, fallback, and
+provider-outage cases. Photo handling, common audio-file handling, explicit
+location, no-location, and source-request cases passed this acceptance pass.
+The unit/integration suite and the live pilot smoke checks are green, but the
 production gate also requires a broader labelled retrieval set and a frozen
 migration sequence.

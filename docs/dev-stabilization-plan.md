@@ -41,7 +41,7 @@ This checklist tracks the work required before creating the production bot. The 
 
 ## Release gate
 
-- [ ] Full unit/integration suite green on the persistent development database.
+- [x] Full unit/integration suite green on the persistent development database.
 - [ ] Manual Telegram matrix green for text, photo, voice, no-location, explicit location, source request, fallback, and provider outage.
 - [x] Backup and restore rehearsal completed against the pilot database.
 - [ ] Documentation matches the tested state.

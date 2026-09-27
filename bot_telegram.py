@@ -174,7 +174,7 @@ def report_retention_candidates() -> None:
             (INTERACTION_RETENTION_DAYS,),
         )
         row = cur.fetchone()
-        if not row:
+        if not row or len(row) < 2:
             return
         sessions, media = row
         if sessions:
@@ -746,6 +746,11 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "rag": rag_result.trace() if rag_result else {"status": "not_run", "sources": []},
         "web": web_result.trace() if web_result else {"status": "not_run"},
         "telemetry": telemetry,
+        "grounding": {
+            "rag_source_count": len(rag_sources),
+            "web_source_count": len(web_result.sources) if web_result else 0,
+            "response_without_sources": not rag_sources and not (web_result and web_result.sources),
+        },
         "response_status": "ok" if response_text else "failed",
     }
     try:

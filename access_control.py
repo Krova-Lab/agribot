@@ -285,8 +285,6 @@ def get_user_daily_count(telegram_id: int) -> int | None:
         print(f"Daily user-count error: {type(e).__name__}")
         return None
 
-_SLIDING_WINDOW_CACHE = {} # telegram_id -> list of timestamps
-
 def check_user_rate_limit(telegram_id: int, max_per_minute: int = 5, max_per_day: int = 30) -> tuple[bool, str, int, int]:
     """
     Check ingestion rate limits:
@@ -294,26 +292,45 @@ def check_user_rate_limit(telegram_id: int, max_per_minute: int = 5, max_per_day
     - Daily limit: max 30 requests per day
     Returns (allowed, reason_code_or_msg, daily_count, remaining_today)
     """
-    now = time.time()
-    # 1. Sliding-window check (one minute)
-    user_ts = _SLIDING_WINDOW_CACHE.get(telegram_id, [])
-    user_ts = [t for t in user_ts if now - t < 60]
-    if len(user_ts) >= max_per_minute:
-        _SLIDING_WINDOW_CACHE[telegram_id] = user_ts
-        daily_count = get_user_daily_count(telegram_id)
-        if daily_count is None:
-            return False, "rate_limit_unavailable", 0, 0
-        return False, "minute_limit", daily_count, max(0, max_per_day - daily_count)
-
-    # 2. Daily-limit check
-    daily_count = get_user_daily_count(telegram_id)
-    if daily_count is None:
+    conn = cur = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute(
+            """INSERT INTO request_rate_limits
+                   (telegram_id, window_started_at, window_count, quota_date, daily_count, updated_at)
+                VALUES (%s, now(), 1, CURRENT_DATE, 1, now())
+                ON CONFLICT (telegram_id) DO UPDATE SET
+                   window_started_at = CASE
+                       WHEN now() - request_rate_limits.window_started_at >= INTERVAL '1 minute'
+                       THEN now() ELSE request_rate_limits.window_started_at END,
+                   window_count = CASE
+                       WHEN now() - request_rate_limits.window_started_at >= INTERVAL '1 minute'
+                       THEN 1 ELSE request_rate_limits.window_count + 1 END,
+                   quota_date = CASE
+                       WHEN request_rate_limits.quota_date <> CURRENT_DATE
+                       THEN CURRENT_DATE ELSE request_rate_limits.quota_date END,
+                   daily_count = CASE
+                       WHEN request_rate_limits.quota_date <> CURRENT_DATE
+                       THEN 1 ELSE request_rate_limits.daily_count + 1 END,
+                   updated_at = now()
+                RETURNING window_count, daily_count""",
+            (telegram_id,),
+        )
+        window_count, daily_count = cur.fetchone()
+        conn.commit()
+        if daily_count > max_per_day:
+            return False, "daily_limit", daily_count, 0
+        if window_count > max_per_minute:
+            return False, "minute_limit", daily_count, max(0, max_per_day - daily_count)
+        return True, "", daily_count, max(0, max_per_day - daily_count)
+    except Exception as exc:
+        if conn is not None:
+            conn.rollback()
+        print(f"Persistent rate-limit error: {type(exc).__name__}")
         return False, "rate_limit_unavailable", 0, 0
-    if daily_count >= max_per_day:
-        return False, "daily_limit", daily_count, 0
-
-    # Update the sliding window
-    user_ts.append(now)
-    _SLIDING_WINDOW_CACHE[telegram_id] = user_ts
-
-    return True, "", daily_count, max_per_day - daily_count
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()

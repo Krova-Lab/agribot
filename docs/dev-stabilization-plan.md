@@ -24,7 +24,7 @@ This checklist tracks the work required before creating the production bot. The 
 
 - [x] Keep access-control checks, per-user minute/day limits, media byte limits, image-pixel limits, and unsupported-video handling.
 - [x] Add a maximum text length and keep provider credentials out of logs and telemetry.
-- [ ] Move the short-window limiter from process memory to a persistent atomic store before running multiple bot workers.
+- [x] Move the short-window limiter from process memory to a persistent atomic store before running multiple bot workers.
 - [ ] Add a bounded concurrency policy and a global provider budget alert.
 - [ ] Add abuse and rate-limit tests covering restarts, concurrent requests, oversized text, media, and malformed uploads.
 

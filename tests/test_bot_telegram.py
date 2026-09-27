@@ -148,6 +148,7 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
             if "INSERT INTO interactions" in call.args[0]
         )
         audit_values = insert_call.args[1]
+        self.assertEqual(insert_call.args[0].count("%s"), len(audit_values))
         trace = json.loads(audit_values[-2])
         self.assertEqual(trace["rag"]["status"], "ok")
         self.assertEqual(trace["web"]["status"], "grounded")

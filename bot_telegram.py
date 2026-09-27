@@ -875,7 +875,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 rag_sources_count, rag_top_distance, tokens_prompt, tokens_completion, estimated_cost_usd,
                 confidence_score,
                 evidence_trace, requested_detail
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
             RETURNING id;
         """, (
             telegram_id, current_role, bool(user_text), has_photo, has_audio, raw_text_entry, response_text[:100],

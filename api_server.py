@@ -77,13 +77,12 @@ class PromoteRagRequest(BaseModel):
 @app.get("/api/v1/health")
 def health_check():
     try:
-        conn = psycopg2.connect(
+        with psycopg2.connect(
             host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS,
             port=DB_PORT, connect_timeout=3,
-        )
-        with conn.cursor() as cur:
-            cur.execute("SELECT 1;")
-        conn.close()
+        ) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1;")
         return {"status": "healthy", "database": "reachable"}
     except Exception as exc:
         raise HTTPException(status_code=503, detail="Database readiness check failed") from exc
@@ -110,8 +109,15 @@ def enroll_user(req: EnrollRequest, _: None = Depends(require_api_token), conn=D
 def list_rag_documents(_: None = Depends(require_api_token), conn=Depends(get_db)):
     with conn.cursor() as cur:
         cur.execute("""
-            SELECT id, title, source, protocol_type, total_chunks, created_at
+            SELECT
+                MIN(id) AS id,
+                MAX(source_title) AS title,
+                MAX(source_url) AS source,
+                MAX(category) AS protocol_type,
+                COUNT(*) AS total_chunks,
+                MAX(created_at) AS created_at
             FROM rag_documents
+            GROUP BY COALESCE(file_sha256, 'row:' || id::text), source_title, source_url, category
             ORDER BY created_at DESC LIMIT 50;
         """)
         return cur.fetchall()
@@ -179,7 +185,7 @@ def list_pending_moderation(limit: int = 30, _: None = Depends(require_api_token
 def submit_review(review: ReviewSubmission, _: None = Depends(require_api_token), conn=Depends(get_db)):
     """Create or update an expert agronomist review of a diagnosis."""
     if review.status not in ["validated", "corrected", "flagged_rag", "pending"]:
-        raise HTTPException(status_code=400, detail="Statut de revue invalide.")
+        raise HTTPException(status_code=400, detail="Invalid review status.")
 
     with conn.cursor() as cur:
         cur.execute("""

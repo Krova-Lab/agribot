@@ -123,11 +123,11 @@ def main():
 
     # 2. Check the HTTP API endpoint
     if not check_api_health():
-        print("[Watchdog] Endpoint /api/v1/health injoignable ou non sain. Relance API...")
+        print("[Watchdog] Endpoint /api/v1/health is unreachable or unhealthy. Restarting the API...")
         restart_service("khmeragri-api.service")
         time.sleep(2)
         if not check_api_health():
-            errors.append("❌ Backend API REST (/api/v1/health) hors-service")
+            errors.append("Backend REST API (/api/v1/health) remains unavailable")
         else:
             print("[Watchdog] REST API backend restored.")
 

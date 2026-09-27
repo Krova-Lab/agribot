@@ -59,8 +59,16 @@ class ReleaseContractTests(unittest.TestCase):
 
     def test_failed_ingestion_moves_the_provenance_sidecar(self):
         source = (ROOT / "ingest_files.py").read_text(encoding="utf-8")
-        failure_block = source[source.index("except Exception as e:"):]
-        self.assertIn("move_source_manifest(filepath, FAILED_DIR)", failure_block)
+        self.assertIn("def move_to_quarantine", source)
+        self.assertIn("move_source_manifest(source, destination_dir, target)", source)
+        self.assertIn("move_to_quarantine(filepath, FAILED_DIR)", source)
+
+    def test_rag_documents_endpoint_uses_current_chunk_schema(self):
+        source = (ROOT / "api_server.py").read_text(encoding="utf-8")
+        self.assertIn("MAX(source_title) AS title", source)
+        self.assertIn("MAX(source_url) AS source", source)
+        self.assertIn("COUNT(*) AS total_chunks", source)
+        self.assertNotIn("SELECT id, title, source, protocol_type, total_chunks", source)
 
     def test_legacy_ingestion_cannot_write_to_the_database(self):
         source = (ROOT / "ingest.py").read_text(encoding="utf-8")

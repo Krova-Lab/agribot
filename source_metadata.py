@@ -49,7 +49,17 @@ def load_source_manifest(filepath: str | Path) -> tuple[dict, str | None]:
     }, None
 
 
-def move_source_manifest(filepath: str | Path, destination: str | Path) -> None:
+def move_source_manifest(
+    filepath: str | Path,
+    destination: str | Path,
+    destination_file: str | Path | None = None,
+) -> None:
+    """Move a sidecar and keep its basename aligned with a renamed document."""
     sidecar = source_manifest_path(filepath)
     if sidecar.exists():
-        shutil.move(str(sidecar), str(Path(destination) / sidecar.name))
+        target = (
+            source_manifest_path(destination_file)
+            if destination_file is not None
+            else Path(destination) / sidecar.name
+        )
+        shutil.move(str(sidecar), str(target))

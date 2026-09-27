@@ -83,8 +83,8 @@ def process_dataset(dataset_name: str, split: str = "train", output_dir: str = "
                 f_txt.write(text_chunk + "\n\n")
 
     print("[✓] Complete.")
-    print(f"    - Texte RAG   : {txt_out_path}")
-    print(f"    - Lignes JSON : {jsonl_out_path}")
+    print(f"    - RAG text    : {txt_out_path}")
+    print(f"    - JSON lines  : {jsonl_out_path}")
 
 
 def main():

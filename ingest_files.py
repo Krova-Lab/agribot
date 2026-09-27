@@ -2,6 +2,7 @@ import os
 import glob
 import shutil
 import hashlib
+import uuid
 import psycopg2
 from PIL import Image
 try:
@@ -48,6 +49,21 @@ AGRI_KEYWORDS = [
     "ដំឡូងមី", "ស្រូវ", "ដី", "ជី"
 ]
 
+
+def move_to_quarantine(filepath: str, destination: str | os.PathLike[str]) -> str:
+    """Move an input and its provenance sidecar without overwriting another item."""
+    source = os.path.abspath(filepath)
+    destination_dir = os.path.abspath(destination)
+    os.makedirs(destination_dir, exist_ok=True)
+    original = os.path.basename(source)
+    stem, suffix = os.path.splitext(original)
+    target = os.path.join(destination_dir, original)
+    if os.path.exists(target):
+        target = os.path.join(destination_dir, f"{stem}_{uuid.uuid4().hex}{suffix}")
+    shutil.move(source, target)
+    move_source_manifest(source, destination_dir, target)
+    return target
+
 def sanitize_text(text: str) -> str:
     """Remove null bytes (\x00) that cause PostgreSQL string-literal errors."""
     if text is None:
@@ -73,12 +89,12 @@ def perform_ocr_image(img_obj) -> str:
         raw_text = pytesseract.image_to_string(img_obj, lang="eng+khm+fra")
         return sanitize_text(raw_text)
     except Exception as e:
-        print(f"⚠️ Warning: eng+khm+fra OCR failed ({e}); falling back to 'eng'...")
+        print(f"[WARNING] eng+khm+fra OCR failed ({type(e).__name__}); falling back to 'eng'.")
         try:
             raw_text = pytesseract.image_to_string(img_obj, lang="eng")
             return sanitize_text(raw_text)
         except Exception as e2:
-            print(f"❌ OCR fallback error: {e2}")
+            print(f"[ERROR] OCR fallback failed: {type(e2).__name__}")
             return ""
 
 def extract_pages_from_file(filepath: str) -> list[str]:
@@ -92,7 +108,7 @@ def extract_pages_from_file(filepath: str) -> list[str]:
             with open(filepath, "r", encoding="utf-8", errors="ignore") as f:
                 pages = [f.read()]
         except Exception as e:
-            print(f"Text read error for {filepath}: {e}")
+            print(f"[ERROR] Text read failed for {filepath}: {type(e).__name__}")
             return []
 
     # 2. Word documents (.docx, .doc)
@@ -103,12 +119,12 @@ def extract_pages_from_file(filepath: str) -> list[str]:
                 full_text = [p.text for p in doc.paragraphs if p.text]
                 pages = ["\n".join(full_text)]
             except Exception as e:
-                print(f"DOCX read error for {filepath}: {e}")
+                print(f"[ERROR] DOCX read failed for {filepath}: {type(e).__name__}")
                 pages = []
 
     # 3. Images (.jpg, .jpeg, .png, .bmp, .tiff, .webp) -> direct OCR
     elif ext in [".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".webp"]:
-        print(f"📷 Image file detected ({ext}). Starting Tesseract OCR...")
+        print(f"[INFO] Image file detected ({ext}); starting Tesseract OCR.")
         try:
             with Image.open(filepath) as img:
                 width, height = img.size
@@ -116,7 +132,7 @@ def extract_pages_from_file(filepath: str) -> list[str]:
                     raise ValueError("image dimensions exceed the configured pixel limit")
                 pages = [perform_ocr_image(img)]
         except Exception as e:
-            print(f"Image read/OCR error for {filepath}: {e}")
+            print(f"[ERROR] Image read/OCR failed for {filepath}: {type(e).__name__}")
             return []
 
     # 4. PDF files -> native extraction, then OCR fallback if under 150 characters
@@ -129,7 +145,7 @@ def extract_pages_from_file(filepath: str) -> list[str]:
             for page in reader.pages:
                 pages.append(sanitize_text(page.extract_text() or ""))
         except Exception as e:
-            print(f"Native PDF read error for {filepath}: {e}")
+            print(f"[ERROR] Native PDF read failed for {filepath}: {type(e).__name__}")
             pages = []
 
         # Sanitise extracted text without discarding PDF page boundaries.
@@ -140,14 +156,14 @@ def extract_pages_from_file(filepath: str) -> list[str]:
         if native_length < 150:
             if pdf2image is None or pytesseract is None:
                 raise RuntimeError("PDF OCR dependencies are not installed; install requirements-ingestion.txt")
-            print(f"Native PDF text insufficient ({native_length} chars < 150). Falling back to page-by-page OCR.")
+            print(f"[INFO] Native PDF text is insufficient ({native_length} chars < 150); falling back to page-by-page OCR.")
             try:
                 images = pdf2image.convert_from_path(
                     filepath, dpi=150, first_page=1, last_page=MAX_PDF_PAGES
                 )
                 pages = [perform_ocr_image(img) for img in images]
             except Exception as e:
-                print(f"PDF conversion/OCR error for {filepath}: {e}")
+                print(f"[ERROR] PDF conversion/OCR failed for {filepath}: {type(e).__name__}")
 
     # Final sanitisation to remove every null byte (\x00) without losing page boundaries.
     return [sanitize_text(page).strip() for page in pages]
@@ -251,6 +267,10 @@ def get_embedding(text: str):
     return res.embeddings[0].values
 
 def ingest_file(filepath: str):
+    if os.path.islink(filepath):
+        print(f"[REJECTED] Refusing symlink input: {filepath}")
+        move_to_quarantine(filepath, REJECTED_DIR)
+        return
     raw_filename = os.path.basename(filepath)
     filename = sanitize_text(raw_filename)
     source_title = sanitize_text(filename)
@@ -258,34 +278,28 @@ def ingest_file(filepath: str):
 
     file_size = os.path.getsize(filepath)
     if file_size > MAX_INGEST_BYTES:
-        print(f"❌ [REJECTED] {filename}: file too large ({file_size} bytes > {MAX_INGEST_BYTES})")
-        os.makedirs(REJECTED_DIR, exist_ok=True)
-        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
-        move_source_manifest(filepath, REJECTED_DIR)
+        print(f"[REJECTED] {filename}: file too large ({file_size} bytes > {MAX_INGEST_BYTES})")
+        move_to_quarantine(filepath, REJECTED_DIR)
         return
 
     metadata, metadata_error = load_source_manifest(filepath)
     if metadata_error:
-        print(f"❌ [REJECTED] {filename}: {metadata_error}")
-        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
-        move_source_manifest(filepath, REJECTED_DIR)
+        print(f"[REJECTED] {filename}: {metadata_error}")
+        move_to_quarantine(filepath, REJECTED_DIR)
         return
     source_title = metadata.get("source_title") or source_title
 
     pages = extract_pages_from_file(filepath)
     text = "\n".join(pages).strip()
     if len(text) > MAX_EXTRACTED_CHARS:
-        print(f"❌ [REJECTED] {filename}: extracted text exceeds the configured limit")
-        shutil.move(filepath, os.path.join(REJECTED_DIR, filename))
-        move_source_manifest(filepath, REJECTED_DIR)
+        print(f"[REJECTED] {filename}: extracted text exceeds the configured limit")
+        move_to_quarantine(filepath, REJECTED_DIR)
         return
     is_valid, reason = validate_document(text, filename)
 
     if not is_valid:
-        print(f"❌ [REJECTED] {filename}: {reason}")
-        dest = os.path.join(REJECTED_DIR, filename)
-        shutil.move(filepath, dest)
-        move_source_manifest(filepath, REJECTED_DIR)
+        print(f"[REJECTED] {filename}: {reason}")
+        move_to_quarantine(filepath, REJECTED_DIR)
         return
 
     sha256_hash = calculate_sha256(filepath)
@@ -296,10 +310,8 @@ def ingest_file(filepath: str):
     try:
         cursor.execute("SELECT id FROM rag_documents WHERE file_sha256 = %s LIMIT 1", (sha256_hash,))
         if cursor.fetchone():
-            print(f"⚠️ [DUPLICATE] {filename} is already in the database. Moving to rejected.")
-            dest = os.path.join(REJECTED_DIR, filename)
-            shutil.move(filepath, dest)
-            move_source_manifest(filepath, REJECTED_DIR)
+            print(f"[DUPLICATE] {filename} is already in the database. Moving to rejected.")
+            move_to_quarantine(filepath, REJECTED_DIR)
             cursor.close()
             conn.close()
             return
@@ -307,7 +319,7 @@ def ingest_file(filepath: str):
         chunks = chunk_pages(pages, metadata.get("source_locator"))
         if len(chunks) > MAX_CHUNKS:
             raise ValueError(f"document produces too many chunks ({len(chunks)} > {MAX_CHUNKS})")
-        print(f"📄 Validation passed ({len(chunks)} chunks). Generating embeddings...")
+        print(f"[INFO] Validation passed ({len(chunks)} chunks); generating embeddings.")
 
         inserted_count = 0
 
@@ -335,18 +347,16 @@ def ingest_file(filepath: str):
 
         # Validate only when 100% of the chunks have been inserted
         conn.commit()
-        print(f"✅ [DATABASE SUCCESS] 100% of chunks ({inserted_count}/{len(chunks)}) inserted for {filename}.")
+        print(f"[DATABASE SUCCESS] All chunks ({inserted_count}/{len(chunks)}) inserted for {filename}.")
         cursor.close()
         conn.close()
 
-        dest = os.path.join(PROCESSED_DIR, filename)
-        shutil.move(filepath, dest)
-        move_source_manifest(filepath, PROCESSED_DIR)
+        move_to_quarantine(filepath, PROCESSED_DIR)
         if not metadata.get("source_url"):
-            print("⚠️ Document indexed as pending: no source URL was supplied; it cannot be retrieved by the bot.")
+            print("[WARNING] Document indexed as pending: no source URL was supplied; the bot cannot retrieve it.")
         else:
-            print("ℹ️ Source metadata recorded as unverified; a reviewer must verify it before retrieval.")
-        print(f"✅ [SUCCESS] {filename} indexed and moved to {PROCESSED_DIR}")
+            print("[INFO] Source metadata recorded as unverified; a reviewer must verify it before retrieval.")
+        print(f"[SUCCESS] {filename} indexed and moved to {PROCESSED_DIR}")
 
     except Exception as e:
         print(f"[TRANSACTION FAILED] Error ingesting {filename}: {type(e).__name__}. Rolling back...")
@@ -360,10 +370,8 @@ def ingest_file(filepath: str):
         except Exception:
             pass
 
-        dest = os.path.join(FAILED_DIR, filename)
-        shutil.move(filepath, dest)
-        move_source_manifest(filepath, FAILED_DIR)
-        print(f"⚠️ [FAILED] {filename} was not indexed and was moved to {FAILED_DIR} for inspection.")
+        move_to_quarantine(filepath, FAILED_DIR)
+        print(f"[FAILED] {filename} was not indexed and was moved to {FAILED_DIR} for inspection.")
 
 def process_dropzone():
     os.makedirs(DROPZONE_DIR, exist_ok=True)

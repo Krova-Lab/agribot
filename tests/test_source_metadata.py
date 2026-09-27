@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from source_metadata import load_source_manifest, source_manifest_path
+from source_metadata import load_source_manifest, move_source_manifest, source_manifest_path
 
 
 class SourceMetadataTests(unittest.TestCase):
@@ -44,6 +44,20 @@ class SourceMetadataTests(unittest.TestCase):
             metadata, error = load_source_manifest(document)
         self.assertEqual(metadata, {})
         self.assertIn("HTTP(S)", error)
+
+    def test_manifest_can_follow_a_quarantined_rename(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            document = root / "guide.pdf"
+            document.touch()
+            source_manifest_path(document).write_text(
+                '{"source_title":"Rice guide"}', encoding="utf-8"
+            )
+            target = root / "rejected" / "guide_duplicate.pdf"
+            target.parent.mkdir()
+            move_source_manifest(document, target.parent, target)
+        self.assertFalse(source_manifest_path(document).exists())
+        self.assertTrue(source_manifest_path(target).exists())
 
 
 if __name__ == "__main__":

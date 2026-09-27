@@ -28,7 +28,7 @@ MESSAGES = {
     "fr": {
         "unauthorized": "⛔ Accès non autorisé à cette console.",
         "start": (
-            "🛠 **KhmerAgri Console Admin & Ingestion**\n\n"
+            "🛠 **Krova Agri Admin & Ingestion Console**\n\n"
             "• Déposez ici vos documents (PDF, DOCX, TXT, MD, scans).\n"
             "• Indexation automatique par le daemon RAG.\n\n"
             "📌 **Commandes :**\n"
@@ -38,7 +38,7 @@ MESSAGES = {
             "/promote <id> <role> - Gérer les rôles\n"
             "/settings - Changer la langue de la console"
         ),
-        "status_title": "📊 **État du système KhmerAgri**",
+        "status_title": "📊 **État du système Krova Agri**",
         "mode_label": "Mode d'accès public",
         "chunks_label": "Chunks en base",
         "dropzone_label": "Fichiers dans la dropzone",
@@ -53,7 +53,7 @@ MESSAGES = {
     "km": {
         "unauthorized": "⛔ គ្មានការអនុញ្ញាតចូលប្រើប្រាស់។",
         "start": (
-            "🛠 **ផ្ទាំងគ្រប់គ្រង និងបញ្ចូលឯកសារ (KhmerAgri Console)**\n\n"
+            "🛠 **ផ្ទាំងគ្រប់គ្រង និងបញ្ចូលឯកសារ (Krova Agri Console)**\n\n"
             "• សូមផ្ញើឯកសារកសិកម្មនៅទីនេះ (PDF, DOCX, TXT, MD, រូបភាពស្កេន)។\n"
             "• ឯកសារនឹងត្រូវបញ្ចូលទៅក្នុងប្រព័ន្ធស្វ័យប្រវត្តិ (RAG Vectorization)។\n\n"
             "📌 **ពាក្យបញ្ជា :**\n"
@@ -63,7 +63,7 @@ MESSAGES = {
             "/promote <id> <role> - កំណត់សិទ្ធិអ្នកប្រើប្រាស់\n"
             "/settings - កំណត់ភាសារបស់ផ្ទាំងគ្រប់គ្រង"
         ),
-        "status_title": "📊 **ស្ថានភាពប្រព័ន្ធ (KhmerAgri Status)**",
+        "status_title": "📊 **ស្ថានភាពប្រព័ន្ធ (Krova Agri Status)**",
         "mode_label": "របៀបដំណើរការសាធារណៈ",
         "chunks_label": "ចំនួន Chunks ក្នុង Base",
         "dropzone_label": "ឯកសាររង់ចាំក្នុង Dropzone",
@@ -78,7 +78,7 @@ MESSAGES = {
     "en": {
         "unauthorized": "⛔ Unauthorized access.",
         "start": (
-            "🛠 **KhmerAgri Console Admin & Ingestion**\n\n"
+            "🛠 **Krova Agri Admin & Ingestion Console**\n\n"
             "• Drop agricultural documents here (PDF, DOCX, TXT, MD, scans).\n"
             "• Automatic vector indexing via RAG daemon.\n\n"
             "📌 **Commands :**\n"
@@ -88,7 +88,7 @@ MESSAGES = {
             "/promote <id> <role> - Manage user roles\n"
             "/settings - Change console language"
         ),
-        "status_title": "📊 **KhmerAgri System Status**",
+        "status_title": "📊 **Krova Agri System Status**",
         "mode_label": "Public access mode",
         "chunks_label": "Chunks in database",
         "dropzone_label": "Pending dropzone files",
@@ -370,7 +370,7 @@ def main():
     app.add_handler(MessageHandler(filters.Document.ALL, handle_document))
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    print("✓ Bot Admin multilingue prêt.")
+    print("Admin bot is ready.")
     app.run_polling()
 
 if __name__ == "__main__":

@@ -28,7 +28,8 @@ This checklist tracks the work required before creating the production bot. The 
 - [ ] Add a bounded concurrency policy and a global provider budget alert.
 - [x] Add regression tests for persistent rate-limit admission, minute/day rejection, and fail-closed database errors.
 - [x] Add a reproducible integration test for concurrent persistent rate-limit admission.
-- [ ] Add integration tests covering restarts, oversized text, media, and malformed uploads.
+- [x] Add a reproducible process-restart persistence test for the request limiter.
+- [ ] Add integration tests covering oversized text, media, and malformed uploads.
 
 ## RAG and development database
 

@@ -67,6 +67,10 @@ The persistent limiter was exercised with ten concurrent requests for a
 temporary user identifier. Five requests were admitted and five were rejected
 by the minute limit; the temporary row was then removed.
 
+A separate two-process check confirmed that a request admitted by one process
+was rejected by the next process because the minute-limit state persisted in
+PostgreSQL. Invalid image bytes are rejected before external processing.
+
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
 was in English.

@@ -25,6 +25,10 @@ class MediaSafetyTests(unittest.TestCase):
             self.assertEqual(image.format, "JPEG")
             self.assertLessEqual(max(image.size), 1024)
 
+    def test_invalid_image_payload_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "Image decoding or normalization failed"):
+            normalize_image(b"not-an-image", 1024)
+
     def test_media_cache_cleanup_removes_only_expired_files(self):
         with tempfile.TemporaryDirectory() as image_dir, tempfile.TemporaryDirectory() as audio_dir:
             old_image = Path(image_dir) / "old.jpg"

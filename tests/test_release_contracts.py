@@ -25,6 +25,7 @@ class ReleaseContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("embedding public.vector(3072)", schema)
+        self.assertIn("embedding::halfvec(3072)", schema)
         self.assertIn("requires vector(3072)", contract)
 
     def test_failed_ingestion_moves_the_provenance_sidecar(self):

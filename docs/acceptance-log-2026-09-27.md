@@ -56,6 +56,12 @@ The development bot was tested through the authorized Telegram test account:
 - A controlled response failover test made an unavailable Azure deployment
   fail first; Gemini then returned the response and telemetry recorded
   `fallback_used=true` with both attempts.
+- A controlled all-provider failure test made both configured response routes
+  fail. The adapter returned no answer, recorded both failed attempts and
+  preserved the fail-closed path used by the Telegram handler.
+
+The read-only retention report also ran against the live development database;
+it completed without deleting or anonymising any interaction.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
@@ -64,7 +70,8 @@ was in English.
 ## Remaining release checks
 
 The full Telegram matrix is still open for a complete
-provider-outage simulation. Photo handling, native voice-note, common audio-file handling,
+provider-outage simulation through the Telegram UI. The adapter-level outage
+check is green. Photo handling, native voice-note, common audio-file handling,
 explicit location, no-location, source-request, and controlled model-failover
 cases passed this acceptance pass. The unit/integration suite and the live
 pilot smoke checks are green, but the production gate also requires a broader

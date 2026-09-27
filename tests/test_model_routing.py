@@ -26,6 +26,19 @@ class ModelRoutingTests(unittest.TestCase):
         self.assertEqual((answer, model), ("Khmer answer", "azure:gpt-4o"))
         azure.assert_called_once()
 
+    def test_all_provider_failures_return_no_answer_and_complete_telemetry(self):
+        telemetry = {}
+        with patch.dict(os.environ, {"KROVA_RESPONSE_MODELS": "gemini:flash,azure:gpt-4o"}):
+            with patch.object(llm_adapter, "_gemini_generate", side_effect=TimeoutError):
+                with patch.object(llm_adapter, "_azure_generate", side_effect=RuntimeError("unavailable")):
+                    answer, model = llm_adapter.ask_llm("Question", telemetry=telemetry)
+
+        self.assertIsNone(answer)
+        self.assertEqual(model, "azure:gpt-4o")
+        self.assertTrue(telemetry["fallback_used"])
+        self.assertEqual(len(telemetry["attempts"]), 2)
+        self.assertTrue(all(attempt["status"] == "failed" for attempt in telemetry["attempts"]))
+
     def test_azure_chat_receives_image_only_for_vision(self):
         with patch.dict(os.environ, {
             "AZURE_FOUNDRY_BASE_URL": "https://example.openai.azure.com/openai/v1",

@@ -35,7 +35,8 @@ This checklist tracks the work required before creating the production bot. The 
 - [x] Bootstrap a persistent `krova_dev` database from the current schema and migrations.
 - [x] Re-ingest a small provenance-complete evaluation corpus into `krova_dev`.
 - [x] Test ingestion -> validation -> embedding -> retrieval -> grounded response end to end.
-- [ ] Add retrieval quality checks for source relevance, publication date, local applicability, and no-source behaviour.
+- [x] Add an initial retrieval distance gate and evaluate source relevance, publication date, local applicability, and no-source behaviour.
+- [ ] Expand the labelled retrieval evaluation set beyond the current WorldFish fixture before freezing the production threshold.
 - [ ] Freeze the development schema and migration order before creating production.
 
 ## Release gate

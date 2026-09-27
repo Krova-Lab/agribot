@@ -51,6 +51,10 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("legacy ingestion path is disabled", source)
         self.assertNotIn("INSERT INTO rag_documents", source)
 
+    def test_only_approved_reviews_can_enter_the_rag_dropzone(self):
+        source = (ROOT / "api_server.py").read_text(encoding="utf-8")
+        self.assertIn("r.status IN ('validated', 'corrected')", source)
+
 
 if __name__ == "__main__":
     unittest.main()

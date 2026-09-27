@@ -92,6 +92,11 @@ def reset_ingestor_strikes(telegram_id: int) -> None:
 
 def is_allowed_access(telegram_id: int, username: str | None = None) -> bool:
     refresh_cache_if_needed()
+    cached_user = _ROLES_CACHE.get(telegram_id)
+    # An explicitly deactivated account must remain blocked in every access
+    # mode; otherwise public mode would turn it back into an admitted guest.
+    if cached_user and not cached_user.get("is_active"):
+        return False
     role = get_user_role(telegram_id)
     if role == "banned":
         return False

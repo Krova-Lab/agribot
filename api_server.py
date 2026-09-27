@@ -255,7 +255,8 @@ def promote_corrected_to_rag(req: PromoteRagRequest, _: None = Depends(require_a
             SELECT i.raw_user_text, r.corrected_diagnosis, r.agronomist_notes, r.reviewer_name
             FROM diagnostic_reviews r
             JOIN interactions i ON r.interaction_id = i.id
-            WHERE r.interaction_id = %s;
+            WHERE r.interaction_id = %s
+              AND r.status IN ('validated', 'corrected');
         """, (req.interaction_id,))
         record = cur.fetchone()
 

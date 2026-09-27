@@ -30,6 +30,9 @@ The development bot was tested through the authorized Telegram test account:
 - A follow-up request for sources did not invent citations. The bot stated that
   no official database record or live Web source had been retrieved for that
   answer and recommended local extension confirmation for plot-level advice.
+- A text question with an explicit location (`Prey Veng, Cambodia`) used that
+  location in the answer, provided a Cambodia-relevant baseline, and asked for
+  the rice growth stage before offering more tailored guidance.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
@@ -37,7 +40,8 @@ was in English.
 
 ## Remaining release checks
 
-The full Telegram matrix is still open for explicit location, photo, voice,
-fallback, and provider-outage cases. The unit/integration suite and the live
+The full Telegram matrix is still open for photo, voice, fallback, and
+provider-outage cases. Explicit location, no-location, and source-request
+cases passed this acceptance pass. The unit/integration suite and the live
 pilot smoke checks are green, but the production gate also requires a broader
 labelled retrieval set and a frozen migration sequence.

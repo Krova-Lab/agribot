@@ -53,6 +53,14 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(attachment[1], "audio/ogg")
         self.assertEqual(attachment[2], "audio")
 
+    def test_audio_attachment_detection_accepts_generic_ogg_audio_mime(self):
+        audio = SimpleNamespace(mime_type="application/ogg", file_name="khmer-test.ogg")
+        attachment = bot_telegram.get_audio_attachment(SimpleNamespace(document=None, voice=None, audio=audio))
+
+        self.assertIsNotNone(attachment)
+        self.assertEqual(attachment[1], "audio/ogg")
+        self.assertEqual(attachment[2], "audio")
+
     def test_audio_attachment_detection_rejects_non_audio_documents(self):
         document = SimpleNamespace(mime_type="application/pdf", file_name="guide.pdf")
         self.assertIsNone(

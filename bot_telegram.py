@@ -432,6 +432,25 @@ def get_audio_attachment(message):
     if audio:
         mime_type = (getattr(audio, "mime_type", None) or "audio/mpeg").lower()
         mime_type = mime_type.split(";", 1)[0].strip()
+        audio_file_name = (getattr(audio, "file_name", None) or "").lower()
+        audio_extension_mimes = {
+            ".aac": "audio/aac",
+            ".flac": "audio/flac",
+            ".m4a": "audio/mp4",
+            ".mp3": "audio/mpeg",
+            ".oga": "audio/ogg",
+            ".ogg": "audio/ogg",
+            ".opus": "audio/opus",
+            ".wav": "audio/wav",
+            ".webm": "audio/webm",
+        }
+        if mime_type == "application/ogg":
+            mime_type = "audio/ogg"
+        elif mime_type not in SUPPORTED_AUDIO_MIME_TYPES:
+            mime_type = next(
+                (value for suffix, value in audio_extension_mimes.items() if audio_file_name.endswith(suffix)),
+                mime_type,
+            )
         if mime_type in SUPPORTED_AUDIO_MIME_TYPES:
             return audio, mime_type, "audio"
 

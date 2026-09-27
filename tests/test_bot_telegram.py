@@ -94,8 +94,8 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
 
         location.assert_called_once()
         self.assertIsNone(location.call_args.args[0])
-        rag.assert_called_once_with(message.text, limit=3)
-        web_research.assert_called_once_with(message.text, "fr")
+        rag.assert_called_once_with(message.text, limit=3, telemetry={})
+        web_research.assert_called_once_with(message.text, "fr", telemetry={})
         llm.assert_called_once()
         prompt = llm.call_args.args[0]
         self.assertIn("Cambodia-wide baseline; no specific location confirmed", prompt)

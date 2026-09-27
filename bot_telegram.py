@@ -173,7 +173,10 @@ def report_retention_candidates() -> None:
               WHERE created_at < CURRENT_TIMESTAMP - (%s * INTERVAL '1 day')""",
             (INTERACTION_RETENTION_DAYS,),
         )
-        sessions, media = cur.fetchone()
+        row = cur.fetchone()
+        if not row:
+            return
+        sessions, media = row
         if sessions:
             logger.warning(
                 "Retention review: %d interactions (%d with media) are older than %d days; no data was deleted",

@@ -25,7 +25,8 @@ This checklist tracks the work required before creating the production bot. The 
 - [x] Keep access-control checks, per-user minute/day limits, media byte limits, image-pixel limits, and unsupported-video handling.
 - [x] Add a maximum text length and keep provider credentials out of logs and telemetry.
 - [x] Move the short-window limiter from process memory to a persistent atomic store before running multiple bot workers.
-- [ ] Add a bounded concurrency policy and a global provider budget alert.
+- [x] Add a configurable bounded concurrency policy for expensive Telegram requests.
+- [ ] Add a global provider budget alert.
 - [x] Add regression tests for persistent rate-limit admission, minute/day rejection, and fail-closed database errors.
 - [x] Add a reproducible integration test for concurrent persistent rate-limit admission.
 - [x] Add a reproducible process-restart persistence test for the request limiter.

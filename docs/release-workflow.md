@@ -24,6 +24,11 @@ an old source; an explicit request for citations; and the mobile-first response
 style. The default answer should be concise, while repeated explicit requests
 for more detail may create a narrow, confidence-scored response preference.
 
+`MAX_CONCURRENT_REQUESTS` bounds the number of simultaneous expensive Telegram
+requests. Keep it conservative until provider latency and quota measurements
+justify increasing it; this limit is process-local and should be coordinated
+with the number of bot workers.
+
 ## Staging and production
 
 Use a separate Telegram bot token and database for staging. Apply the exact

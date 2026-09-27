@@ -42,6 +42,8 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("MAX_USER_TEXT_CHARS", env)
         self.assertIn("INTERACTION_RETENTION_DAYS", env)
         self.assertIn("MAX_USER_TEXT_CHARS", source)
+        self.assertIn("MAX_CONCURRENT_REQUESTS", env)
+        self.assertIn("REQUEST_SEMAPHORE", source)
 
     def test_metrics_report_is_aggregate_only(self):
         source = (ROOT / "bin/report_metrics.py").read_text(encoding="utf-8")

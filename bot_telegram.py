@@ -154,6 +154,8 @@ SUPPORTED_AUDIO_MIME_TYPES = {
     "audio/x-wav",
 }
 MAX_USER_TEXT_CHARS = int(os.getenv("MAX_USER_TEXT_CHARS", "6000"))
+MAX_CONCURRENT_REQUESTS = max(1, int(os.getenv("MAX_CONCURRENT_REQUESTS", "4")))
+REQUEST_SEMAPHORE = asyncio.Semaphore(MAX_CONCURRENT_REQUESTS)
 MEDIA_CACHE_RETENTION_SECONDS = int(os.getenv("MEDIA_CACHE_RETENTION_SECONDS", str(24 * 60 * 60)))
 INTERACTION_RETENTION_DAYS = int(os.getenv("INTERACTION_RETENTION_DAYS", "90"))
 MAINTENANCE_INTERVAL_SECONDS = int(os.getenv("MAINTENANCE_INTERVAL_SECONDS", "3600"))
@@ -505,6 +507,12 @@ async def handle_user_document(update: Update, context: ContextTypes.DEFAULT_TYP
     )
 
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Limit simultaneous expensive Telegram requests across all users."""
+    async with REQUEST_SEMAPHORE:
+        await _handle_user_input(update, context)
+
+
+async def _handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     user = update.effective_user
     telegram_id = user.id if user else 0

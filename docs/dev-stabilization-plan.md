@@ -8,7 +8,7 @@ This checklist tracks the work required before creating the production bot. The 
 - [x] Record RAG status, embedding/query timings, retrieved source count, and top distance.
 - [x] Record web-search status, search-query count, source count, and claim-link count.
 - [x] Record model attempts, provider failures, fallback usage, token usage when returned, and optional estimated cost.
-- [ ] Add a small read-only admin report for latency percentiles, error rates, fallback rates, and no-source responses.
+- [x] Add a small read-only admin report for latency percentiles, error rates, fallback rates, and no-source responses.
 - [ ] Define provider pricing variables per model before treating cost data as complete.
 
 ## Data retention and privacy
@@ -45,3 +45,13 @@ This checklist tracks the work required before creating the production bot. The 
 - [ ] Backup and restore rehearsal completed.
 - [ ] Documentation matches the tested state.
 - [ ] Only after the above: prepare a separate production branch/database/bot and keep onboarding as a final task.
+
+## Metrics report
+
+Run the report from the repository root with the target database selected through the environment:
+
+```bash
+DB_NAME=krova_dev python bin/report_metrics.py --days 7
+```
+
+The report is aggregate-only. It does not print raw user text, Telegram identifiers, media identifiers, prompts, or source URLs.

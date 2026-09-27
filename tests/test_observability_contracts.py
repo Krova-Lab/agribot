@@ -43,6 +43,13 @@ class ObservabilityContractTests(unittest.TestCase):
         self.assertIn("INTERACTION_RETENTION_DAYS", env)
         self.assertIn("MAX_USER_TEXT_CHARS", source)
 
+    def test_metrics_report_is_aggregate_only(self):
+        source = (ROOT / "bin/report_metrics.py").read_text(encoding="utf-8")
+        self.assertIn("percentile_cont", source)
+        self.assertIn("responses_without_sources", source)
+        self.assertNotIn("raw_user_text", source)
+        self.assertNotIn("media_file_id", source)
+
 
 if __name__ == "__main__":
     unittest.main()

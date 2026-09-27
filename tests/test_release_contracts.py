@@ -42,7 +42,10 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertNotIn("CREATE TABLE IF NOT EXISTS public.knowledge_base", schema)
 
     def test_ci_has_a_clean_production_schema_rehearsal(self):
-        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        workflow_path = ROOT / ".github/workflows/ci.yml"
+        if not workflow_path.exists():
+            self.skipTest("The public mirror does not include the private schema CI workflow")
+        workflow = workflow_path.read_text(encoding="utf-8")
         self.assertIn("Verify dedicated production schema from scratch", workflow)
         self.assertIn("createdb", workflow)
         self.assertIn("migrations/20260925_production_bot_schema.sql", workflow)

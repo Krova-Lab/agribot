@@ -139,6 +139,19 @@ os.makedirs(IMAGE_CACHE_DIR, exist_ok=True)
 os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
 MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(10 * 1024 * 1024)))
 MAX_AUDIO_BYTES = int(os.getenv("MAX_AUDIO_BYTES", str(5 * 1024 * 1024)))
+SUPPORTED_AUDIO_MIME_TYPES = {
+    "audio/aac",
+    "audio/flac",
+    "audio/m4a",
+    "audio/mp4",
+    "audio/mpeg",
+    "audio/ogg",
+    "audio/opus",
+    "audio/wav",
+    "audio/webm",
+    "audio/x-m4a",
+    "audio/x-wav",
+}
 MAX_USER_TEXT_CHARS = int(os.getenv("MAX_USER_TEXT_CHARS", "6000"))
 MEDIA_CACHE_RETENTION_SECONDS = int(os.getenv("MEDIA_CACHE_RETENTION_SECONDS", str(24 * 60 * 60)))
 INTERACTION_RETENTION_DAYS = int(os.getenv("INTERACTION_RETENTION_DAYS", "90"))
@@ -407,6 +420,60 @@ async def handle_unsupported_video(update: Update, context: ContextTypes.DEFAULT
         "🎥 Video analysis is not enabled yet. Please send a photo or a voice message instead."
     )
 
+
+def get_audio_attachment(message):
+    """Return a Telegram audio attachment and its MIME type when supported."""
+
+    voice = getattr(message, "voice", None)
+    if voice:
+        return voice, "audio/ogg", "voice"
+
+    audio = getattr(message, "audio", None)
+    if audio:
+        mime_type = (getattr(audio, "mime_type", None) or "audio/mpeg").lower()
+        if mime_type in SUPPORTED_AUDIO_MIME_TYPES:
+            return audio, mime_type, "audio"
+
+    document = getattr(message, "document", None)
+    if document:
+        mime_type = (getattr(document, "mime_type", None) or "").lower()
+        file_name = (getattr(document, "file_name", None) or "").lower()
+        extension_mimes = {
+            ".aac": "audio/aac",
+            ".flac": "audio/flac",
+            ".m4a": "audio/mp4",
+            ".mp3": "audio/mpeg",
+            ".oga": "audio/ogg",
+            ".ogg": "audio/ogg",
+            ".opus": "audio/opus",
+            ".wav": "audio/wav",
+            ".webm": "audio/webm",
+        }
+        if mime_type not in SUPPORTED_AUDIO_MIME_TYPES:
+            mime_type = next(
+                (value for suffix, value in extension_mimes.items() if file_name.endswith(suffix)),
+                "",
+            )
+        if mime_type in SUPPORTED_AUDIO_MIME_TYPES:
+            return document, mime_type, "audio_file"
+
+    return None
+
+
+async def handle_user_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Process supported audio documents and explain unsupported documents."""
+
+    message = update.message
+    if not message:
+        return
+    if get_audio_attachment(message):
+        await handle_user_input(update, context)
+        return
+    await message.reply_text(
+        "I can process voice messages and common audio files. "
+        "Please send an audio file or a photo instead."
+    )
+
 async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message
     user = update.effective_user
@@ -449,7 +516,9 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     run_maintenance_if_due()
     has_photo = bool(message.photo)
+    audio_attachment = get_audio_attachment(message)
     has_voice = bool(message.voice)
+    has_audio = audio_attachment is not None
 
     lang = detect_ui_lang(user_text)
     WAIT_MSGS = {
@@ -464,7 +533,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
 
     # Waiting message adapted to voice or text input
-    if has_voice:
+    if has_audio:
         wait_text = "🎙️ កំពុងស្ដាប់ និងវិភាគសំឡេង (Écoute et analyse du vocal en cours)..."
     else:
         wait_text = WAIT_MSGS.get(lang, WAIT_MSGS["km"])
@@ -537,34 +606,34 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         finally:
             telemetry["timings_ms"]["plantnet"] = int((time.monotonic() - plantnet_start) * 1000)
 
-    elif has_voice:
+    elif has_audio:
         download_start = time.monotonic()
-        voice_obj = message.voice
-        if voice_obj.file_size and voice_obj.file_size > MAX_AUDIO_BYTES:
-            await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
+        audio_obj, media_mime, audio_kind = audio_attachment
+        if audio_obj.file_size and audio_obj.file_size > MAX_AUDIO_BYTES:
+            await status_msg.edit_text("⚠️ Audio file is too large. Please send a shorter recording.")
             return
-        media_file_id = voice_obj.file_id
-        voice_file = await voice_obj.get_file()
+        media_file_id = audio_obj.file_id
+        audio_file = await audio_obj.get_file()
         buf = io.BytesIO()
-        await voice_file.download_to_memory(buf)
+        await audio_file.download_to_memory(buf)
         media_bytes = buf.getvalue()
         media_file_size = len(media_bytes)
         try:
-            enforce_download_limit(media_bytes, MAX_AUDIO_BYTES, "Voice message")
+            enforce_download_limit(media_bytes, MAX_AUDIO_BYTES, "Audio file")
         except ValueError:
-            await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
+            await status_msg.edit_text("⚠️ Audio file is too large. Please send a shorter recording.")
             return
-        media_mime = "audio/ogg"
         telemetry["timings_ms"]["media_download"] = int((time.monotonic() - download_start) * 1000)
 
         # Save to disk for auditability and debugging
         try:
             ts = time.strftime("%Y%m%d_%H%M%S")
-            safe_fname = f"{ts}_{telegram_id}_{voice_obj.file_unique_id}.ogg"
+            suffix = ".ogg" if media_mime == "audio/ogg" else ".audio"
+            safe_fname = f"{ts}_{telegram_id}_{audio_obj.file_unique_id}{suffix}"
             voice_save_path = os.path.join(AUDIO_CACHE_DIR, safe_fname)
             with open(voice_save_path, "wb") as f:
                 f.write(media_bytes)
-            logger.info(f"Audio saved: {voice_save_path} ({media_file_size} bytes)")
+            logger.info("Audio saved: %s (%d bytes, kind=%s)", voice_save_path, media_file_size, audio_kind)
         except Exception as e:
                 logger.warning(f"Audio disk-save error: {e}")
 
@@ -573,12 +642,12 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         prepared = prepare_input(user_text, media_bytes, media_mime)
     except InputInterpretationError:
-        logger.warning("Input interpretation failed: type=%s", "voice" if has_voice else "photo")
+        logger.warning("Input interpretation failed: type=%s", "audio" if has_audio else "photo")
         await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["km"]))
         return
     telemetry["timings_ms"]["media_interpretation"] = int((time.monotonic() - interpretation_start) * 1000)
     user_text = prepared.user_text
-    if has_voice:
+    if has_audio:
         lang = detect_ui_lang(user_text)
     requested_detail = user_requests_more_detail(user_text)
     detail_preference = load_detail_preference(telegram_id)
@@ -650,7 +719,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     attached_desc = PROMPTS.get("attached_media", {}).get("none", "None")
     if has_photo:
         attached_desc = PROMPTS.get("attached_media", {}).get("image", attached_desc)
-    elif has_voice:
+    elif has_audio:
         attached_desc = PROMPTS.get("attached_media", {}).get("audio", attached_desc)
     if prepared.interpretation_model:
         attached_desc = f"{attached_desc}\n    Interpreted evidence: {prepared.media_observation}"
@@ -774,7 +843,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
-        raw_text_entry = user_text if user_text else ("[Voice message]" if has_voice else "[Photo sent]")
+        raw_text_entry = user_text if user_text else ("[Audio message]" if has_audio else "[Photo sent]")
         current_role = access_control.get_user_role(telegram_id)
         cur.execute("""
             INSERT INTO interactions (
@@ -788,7 +857,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
             RETURNING id;
         """, (
-            telegram_id, current_role, bool(user_text), has_photo, has_voice, raw_text_entry, response_text[:100],
+            telegram_id, current_role, bool(user_text), has_photo, has_audio, raw_text_entry, response_text[:100],
             media_file_id, media_file_size, lang,
             lat if telegram_id in USER_LOCATIONS else None,
             lon if telegram_id in USER_LOCATIONS else None,
@@ -949,6 +1018,12 @@ if __name__ == '__main__':
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_user_input))
     application.add_handler(MessageHandler(filters.PHOTO, handle_user_input))
     application.add_handler(MessageHandler(filters.VOICE, handle_user_input))
+    audio_filter = getattr(filters, "AUDIO", None)
+    if audio_filter is not None:
+        application.add_handler(MessageHandler(audio_filter, handle_user_input))
+    document_filter = getattr(getattr(filters, "Document", None), "ALL", None)
+    if document_filter is not None:
+        application.add_handler(MessageHandler(document_filter, handle_user_document))
     application.add_handler(MessageHandler(filters.LOCATION, handle_location))
     video_filter = getattr(filters, "VIDEO", None)
     if video_filter is not None:

@@ -28,13 +28,29 @@ except ModuleNotFoundError as exc:  # Keep the dependency-light suite usable loc
     telegram_ext.CommandHandler = object
     telegram_ext.MessageHandler = object
     telegram_ext.CallbackQueryHandler = object
-    telegram_ext.filters = types.SimpleNamespace(TEXT=object(), COMMAND=object(), PHOTO=object(), VOICE=object(), LOCATION=object())
+    telegram_ext.filters = types.SimpleNamespace(
+        TEXT=object(), COMMAND=object(), PHOTO=object(), VOICE=object(), AUDIO=object(),
+        LOCATION=object(), Document=types.SimpleNamespace(ALL=object()),
+    )
     sys.modules["telegram"] = telegram
     sys.modules["telegram.ext"] = telegram_ext
     import bot_telegram  # noqa: E402
 
 
 class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
+    def test_audio_attachment_detection_accepts_audio_documents(self):
+        document = SimpleNamespace(mime_type="audio/wav", file_name="khmer-test.wav")
+        attachment = bot_telegram.get_audio_attachment(SimpleNamespace(document=document, voice=None, audio=None))
+        self.assertIsNotNone(attachment)
+        self.assertEqual(attachment[1], "audio/wav")
+        self.assertEqual(attachment[2], "audio_file")
+
+    def test_audio_attachment_detection_rejects_non_audio_documents(self):
+        document = SimpleNamespace(mime_type="application/pdf", file_name="guide.pdf")
+        self.assertIsNone(
+            bot_telegram.get_audio_attachment(SimpleNamespace(document=document, voice=None, audio=None))
+        )
+
     def test_source_request_detection_is_explicit(self):
         self.assertFalse(bot_telegram.user_requests_sources("Comment traiter les feuilles jaunes du riz ?"))
         self.assertFalse(bot_telegram.user_requests_sources("Peux-tu me donner plus de détails ?"))

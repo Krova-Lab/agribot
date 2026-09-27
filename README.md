@@ -21,7 +21,7 @@
 
 Smallholder farmers need answers that are understandable, local, and actionable — not generic chatbot content. Krova Agri combines conversational access with a curated agricultural knowledge base and practical safety guardrails.
 
-- **Built for the field:** farmers can ask questions by text, voice message, or photo from Telegram.
+- **Built for the field:** farmers can ask questions by text, Telegram voice message, common audio file, or photo.
 - **Multilingual by design:** Khmer-first interaction with French and English support.
 - **Evidence-grounded answers:** retrieved agricultural sources are stored and searched locally through PostgreSQL and `pgvector`.
 - **Multimodal assistance:** crop photos can be analysed alongside botanical identification data from Pl@ntNet.
@@ -68,7 +68,7 @@ flowchart LR
 
 ### Main components
 
-- `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
+- `bot_telegram.py` — Telegram gateway for text, voice, common audio files, photo, language detection, access control, feedback, and interaction logging.
 - `bot_prod.py` — isolated future-public-bot shell for wait-list onboarding, settings, and quota status. It uses a dedicated database and token; it does not change the pilot bot.
 - `llm_adapter.py` — task-specific model routing with bounded GPT-4o fallback.
 - `media_pipeline.py` — voice transcription or cautious image observation before retrieval.

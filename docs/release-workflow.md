@@ -47,5 +47,8 @@ incident requires database recovery.
 ## Public mirror
 
 The public mirror workflow copies only the approved public tree and runs its own
-compile, test, dependency, and Docker checks. The private repository remains the
-source of truth for secrets, private prompts, operational schema, and user data.
+compile, test, dependency, and Docker checks. Its generated commit reuses the
+private source commit subject, then lists the exact public files changed. The
+workflow does not copy private commit bodies or excluded paths. The private
+repository remains the source of truth for secrets, private prompts, operational
+schema, and user data.

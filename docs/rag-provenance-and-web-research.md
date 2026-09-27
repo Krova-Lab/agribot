@@ -47,6 +47,12 @@ RAG retrieval is limited to rows with `audit_status = 'approved'`,
 `provenance_status = 'verified'`, and a non-empty `source_url`. Each retrieved
 chunk carries its database ID, corpus, content hash, source title, URL, publisher,
 publication date, licence, and vector distance into the interaction audit trace.
+The SQL retrieval step keeps at most two chunks per canonical source URL so that
+the response context is not dominated by overlapping passages from one document.
+It still orders the final candidates by cosine distance; lower distance means a
+closer embedding match, not proof that the passage supports every claim in the
+answer. The model must compare the passage itself with the claim before treating
+it as evidence.
 Source references are available in the Telegram reply when the user explicitly
 asks for sources, references, or citations. A request for more detail alone
 does not trigger a source list. PDF extraction keeps
@@ -71,6 +77,9 @@ The bot compares exact passages and web-grounded claims, preserves quoted values
 and must not silently combine conflicting numbers or recommendations. When
 credible sources disagree and no source clearly applies better, it should state
 the conflict and uncertainty rather than give a falsely precise answer.
+Retrieval quality should be evaluated with a small labelled question set before
+changing chunk size, embedding model, or ranking thresholds. A smaller distance
+is useful for comparison but must not be treated as a universal confidence score.
 
 Publication date is part of evidence assessment, not only citation metadata. Older
 documents may remain useful for stable agronomic methods, definitions, or historical

@@ -35,6 +35,9 @@ class RagSearchTests(unittest.TestCase):
         self.assertIn("provenance_status = 'verified'", sql)
         self.assertIn("NULLIF(BTRIM(source_url), '') IS NOT NULL", sql)
         self.assertIn("FROM knowledge_base AS kb", sql)
+        self.assertIn("ROW_NUMBER() OVER", sql)
+        self.assertIn("PARTITION BY source_url", sql)
+        self.assertIn("WHERE source_rank <= 2", sql)
         self.assertEqual(params, ([0.1, 0.2], 3))
         self.assertEqual(retrieval.status, "ok")
         self.assertEqual(retrieval.sources[0].url, "https://irri.org/water")
@@ -43,6 +46,7 @@ class RagSearchTests(unittest.TestCase):
         self.assertEqual(retrieval.sources[0].trace(1)["source_locator"], "Section 3, p. 12")
         self.assertIn("https://irri.org/water", rag_search.format_rag_context(retrieval.sources))
         self.assertIn("Page/section: Section 3, p. 12", rag_search.format_rag_context(retrieval.sources))
+        self.assertIn("Cosine distance (lower is closer): 0.1200", rag_search.format_rag_context(retrieval.sources))
         connection.close.assert_called_once()
 
     def test_search_can_surface_errors_for_integration_checks(self):

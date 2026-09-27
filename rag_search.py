@@ -90,12 +90,27 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
                       WHERE rd.file_sha256 = kb.file_sha256
                   )
             )
+            scored AS (
+                SELECT corpus, id, source_title, content, source_url,
+                       source_publisher, source_publication_date, source_license,
+                       source_locator, content_sha256,
+                       embedding::halfvec(3072) <=> %s::halfvec(3072) AS distance
+                FROM candidates
+            ),
+            diversified AS (
+                SELECT scored.*,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY source_url
+                           ORDER BY distance ASC, id ASC
+                       ) AS source_rank
+                FROM scored
+            )
             SELECT corpus, id, source_title, content, source_url,
                    source_publisher, source_publication_date, source_license,
-                   source_locator, content_sha256,
-                   embedding::halfvec(3072) <=> %s::halfvec(3072) AS distance
-            FROM candidates
-            ORDER BY distance ASC
+                   source_locator, content_sha256, distance
+            FROM diversified
+            WHERE source_rank <= 2
+            ORDER BY distance ASC, id ASC
             LIMIT %s;
             """,
             (query_vector, limit),
@@ -131,12 +146,13 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
 
 
 def format_rag_context(sources: list[RetrievedSource]) -> str:
-    """Format retrieved evidence with explicit, machine-verified provenance."""
+    """Format retrieved evidence with explicit provenance and ranking context."""
     return "\n\n".join(
         f"[RAG SOURCE {rank}] {source.title}\n"
         f"Publisher: {source.publisher or 'Not recorded'}\n"
         f"Published: {source.publication_date or 'Not recorded'}\n"
         f"Page/section: {source.source_locator or 'Not recorded'}\n"
+        f"Cosine distance (lower is closer): {source.distance:.4f}\n"
         f"URL: {source.url}\n"
         f"Passage: {source.content}"
         for rank, source in enumerate(sources, 1)

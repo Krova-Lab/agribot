@@ -46,6 +46,9 @@ The development bot was tested through the authorized Telegram test account:
 - A fresh photo-only Telegram message was accepted after the media-routing
   fix. The service saved the image, ran the vision route, sent the final
   response, and did not enter the audio-transcription path.
+- A controlled response failover test made an unavailable Azure deployment
+  fail first; Gemini then returned the response and telemetry recorded
+  `fallback_used=true` with both attempts.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
@@ -53,9 +56,9 @@ was in English.
 
 ## Remaining release checks
 
-The full Telegram matrix is still open for native voice-note, fallback, and
-provider-outage cases. Photo handling, common audio-file handling, explicit
-location, no-location, and source-request cases passed this acceptance pass.
-The unit/integration suite and the live pilot smoke checks are green, but the
-production gate also requires a broader labelled retrieval set and a frozen
-migration sequence.
+The full Telegram matrix is still open for native voice-note and a complete
+provider-outage simulation. Photo handling, common audio-file handling,
+explicit location, no-location, source-request, and controlled model-failover
+cases passed this acceptance pass. The unit/integration suite and the live
+pilot smoke checks are green, but the production gate also requires a broader
+labelled retrieval set and a frozen migration sequence.

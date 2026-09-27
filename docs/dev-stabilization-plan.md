@@ -42,7 +42,7 @@ This checklist tracks the work required before creating the production bot. The 
 ## Release gate
 
 - [x] Full unit/integration suite green on the persistent development database.
-- [ ] Manual Telegram matrix green for text, photo, native voice note, common audio file, no-location, explicit location, source request, fallback, and provider outage. Common audio-file, no-location, explicit-location, and source-request cases are accepted; photo, native voice-note, fallback, and provider-outage cases remain open.
+- [ ] Manual Telegram matrix green for text, photo, native voice note, common audio file, no-location, explicit location, source request, fallback, and provider outage. Photo, common audio-file, no-location, explicit-location, source-request, and controlled model-failover cases are accepted; native voice-note and full provider-outage simulation remain open.
 - [x] Backup and restore rehearsal completed against the pilot database.
 - [ ] Documentation matches the tested state.
 - [ ] Only after the above: prepare a separate production branch/database/bot and keep onboarding as a final task.

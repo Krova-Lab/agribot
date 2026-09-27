@@ -38,6 +38,11 @@ The development bot was tested through the authorized Telegram test account:
   the file, then returned a Khmer response instead of silently ignoring the
   document. This validates the common-audio-file path; a native Telegram voice
   note still needs a separate live check.
+- A Khmer `.ogg` audio file sent through Telegram's audio upload flow was then
+  accepted after generic Telegram MIME values were normalized. The service
+  called Telegram `getFile`, downloaded the file, ran the transcription route,
+  and returned a Khmer answer. This confirms the audio-object path as well as
+  the document path.
 
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request

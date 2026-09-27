@@ -89,7 +89,7 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
                       SELECT 1 FROM rag_documents AS rd
                       WHERE rd.file_sha256 = kb.file_sha256
                   )
-            )
+            ),
             scored AS (
                 SELECT corpus, id, source_title, content, source_url,
                        source_publisher, source_publication_date, source_license,

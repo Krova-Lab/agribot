@@ -63,6 +63,10 @@ The development bot was tested through the authorized Telegram test account:
 The read-only retention report also ran against the live development database;
 it completed without deleting or anonymising any interaction.
 
+The persistent limiter was exercised with ten concurrent requests for a
+temporary user identifier. Five requests were admitted and five were rejected
+by the minute limit; the temporary row was then removed.
+
 The response remained readable on a phone and ended with an invitation for a
 more tailored follow-up. The response was in English because the test request
 was in English.

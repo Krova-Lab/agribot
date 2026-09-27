@@ -89,7 +89,7 @@ from PIL import Image
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, BotCommand
 
 async def post_init(application):
-    purge_media_cache()
+    run_maintenance_if_due()
     commands = [
         BotCommand("start", "Start bot"),
         BotCommand("quota", "Check limits"),
@@ -139,7 +139,11 @@ os.makedirs(IMAGE_CACHE_DIR, exist_ok=True)
 os.makedirs(AUDIO_CACHE_DIR, exist_ok=True)
 MAX_IMAGE_BYTES = int(os.getenv("MAX_IMAGE_BYTES", str(10 * 1024 * 1024)))
 MAX_AUDIO_BYTES = int(os.getenv("MAX_AUDIO_BYTES", str(5 * 1024 * 1024)))
+MAX_USER_TEXT_CHARS = int(os.getenv("MAX_USER_TEXT_CHARS", "6000"))
 MEDIA_CACHE_RETENTION_SECONDS = int(os.getenv("MEDIA_CACHE_RETENTION_SECONDS", str(24 * 60 * 60)))
+INTERACTION_RETENTION_DAYS = int(os.getenv("INTERACTION_RETENTION_DAYS", "90"))
+MAINTENANCE_INTERVAL_SECONDS = int(os.getenv("MAINTENANCE_INTERVAL_SECONDS", "3600"))
+_last_maintenance = 0.0
 Image.MAX_IMAGE_PIXELS = int(os.getenv("MAX_IMAGE_PIXELS", "20000000"))
 
 
@@ -153,6 +157,46 @@ def purge_media_cache() -> None:
                     os.unlink(entry.path)
             except OSError as exc:
                 logger.warning("Media cache cleanup failed for %s: %s", entry.path, type(exc).__name__)
+
+
+def report_retention_candidates() -> None:
+    """Report old raw sessions without deleting or anonymizing user data."""
+    if INTERACTION_RETENTION_DAYS <= 0:
+        return
+    conn = cur = None
+    try:
+        conn = psycopg2.connect(**DB_PARAMS)
+        cur = conn.cursor()
+        cur.execute(
+            """SELECT COUNT(*), COUNT(*) FILTER (WHERE media_file_id IS NOT NULL)
+               FROM interactions
+              WHERE created_at < CURRENT_TIMESTAMP - (%s * INTERVAL '1 day')""",
+            (INTERACTION_RETENTION_DAYS,),
+        )
+        sessions, media = cur.fetchone()
+        if sessions:
+            logger.warning(
+                "Retention review: %d interactions (%d with media) are older than %d days; no data was deleted",
+                sessions, media, INTERACTION_RETENTION_DAYS,
+            )
+    except Exception as exc:
+        logger.warning("Interaction retention report failed: %s", type(exc).__name__)
+    finally:
+        if cur is not None:
+            cur.close()
+        if conn is not None:
+            conn.close()
+
+
+def run_maintenance_if_due() -> None:
+    """Run bounded cleanup/reporting on startup and at most once per interval."""
+    global _last_maintenance
+    now = time.monotonic()
+    if now - _last_maintenance < MAINTENANCE_INTERVAL_SECONDS:
+        return
+    _last_maintenance = now
+    purge_media_cache()
+    report_retention_candidates()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
@@ -395,6 +439,12 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await message.reply_text(limit_msg, parse_mode="HTML")
         return
     user_text = message.text or message.caption or ""
+    if len(user_text) > MAX_USER_TEXT_CHARS:
+        await message.reply_text(
+            f"⚠️ Message too long. Please send a shorter question (maximum {MAX_USER_TEXT_CHARS} characters)."
+        )
+        return
+    run_maintenance_if_due()
     has_photo = bool(message.photo)
     has_voice = bool(message.voice)
 
@@ -417,7 +467,8 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         wait_text = WAIT_MSGS.get(lang, WAIT_MSGS["km"])
 
     status_msg = await message.reply_text(wait_text)
-    t_start = time.time()
+    t_start = time.monotonic()
+    telemetry: dict = {"timings_ms": {}, "errors": []}
 
     # 1. Download media (photo or voice) & Pl@ntNet
     media_bytes = None
@@ -427,6 +478,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     plantnet_info = ""
 
     if has_photo:
+        download_start = time.monotonic()
         photo_obj = message.photo[-1]
         if photo_obj.file_size and photo_obj.file_size > MAX_IMAGE_BYTES:
             await status_msg.edit_text("⚠️ Image is too large. Please send a smaller photo.")
@@ -443,6 +495,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.edit_text("⚠️ Image is too large. Please send a smaller photo.")
             return
         media_mime = "image/jpeg"
+        telemetry["timings_ms"]["media_download"] = int((time.monotonic() - download_start) * 1000)
 
         # Save to disk for auditability and debugging
         try:
@@ -456,14 +509,18 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning(f"Image disk-save error: {e}")
 
         # Process and optimise the image with PIL (Pillow)
+        normalize_start = time.monotonic()
         try:
             media_bytes = normalize_image(media_bytes, MAX_IMAGE_BYTES)
             media_file_size = len(media_bytes)
+            telemetry["timings_ms"]["image_normalization"] = int((time.monotonic() - normalize_start) * 1000)
         except ValueError as exc:
+            telemetry["errors"].append({"stage": "image_normalization", "error_type": type(exc).__name__})
             logger.warning("Image normalization failed: %s", type(exc).__name__)
             await status_msg.edit_text("⚠️ I could not read that image. Please send another photo.")
             return
 
+        plantnet_start = time.monotonic()
         try:
             plant_res = identify_plant_plantnet(media_bytes)
             if plant_res and "scientific_name" in plant_res:
@@ -472,9 +529,13 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 score = plant_res.get("score", 0)
                 plantnet_info = f"Pl@ntNet Identification: {s_name} ({c_names}) - Confidence: {score}%"
         except Exception as e:
-                logger.warning(f"Pl@ntNet error: {e}")
+                telemetry["errors"].append({"stage": "plantnet", "error_type": type(e).__name__})
+                logger.warning("Pl@ntNet error: %s", type(e).__name__)
+        finally:
+            telemetry["timings_ms"]["plantnet"] = int((time.monotonic() - plantnet_start) * 1000)
 
     elif has_voice:
+        download_start = time.monotonic()
         voice_obj = message.voice
         if voice_obj.file_size and voice_obj.file_size > MAX_AUDIO_BYTES:
             await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
@@ -491,6 +552,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await status_msg.edit_text("⚠️ Voice message is too large. Please send a shorter recording.")
             return
         media_mime = "audio/ogg"
+        telemetry["timings_ms"]["media_download"] = int((time.monotonic() - download_start) * 1000)
 
         # Save to disk for auditability and debugging
         try:
@@ -504,12 +566,14 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning(f"Audio disk-save error: {e}")
 
     # 2. Interpret media before retrieval so spoken or visible evidence can be searched.
+    interpretation_start = time.monotonic()
     try:
         prepared = prepare_input(user_text, media_bytes, media_mime)
     except InputInterpretationError:
         logger.warning("Input interpretation failed: type=%s", "voice" if has_voice else "photo")
         await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["km"]))
         return
+    telemetry["timings_ms"]["media_interpretation"] = int((time.monotonic() - interpretation_start) * 1000)
     user_text = prepared.user_text
     if has_voice:
         lang = detect_ui_lang(user_text)
@@ -522,19 +586,25 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
     # 4. Dynamic semantic RAG through pgvector
-    rag_start = time.time()
-    rag_result = retrieve_rag(prepared.retrieval_query, limit=3) if prepared.retrieval_query else None
+    rag_start = time.monotonic()
+    rag_telemetry: dict = {}
+    rag_result = retrieve_rag(prepared.retrieval_query, limit=3, telemetry=rag_telemetry) if prepared.retrieval_query else None
     rag_sources = rag_result.sources if rag_result else ()
     rag_context = format_rag_context(rag_sources)
     if not rag_context:
         rag_context = PROMPTS["fallback_rag_context"]
-    rag_ms = int((time.time() - rag_start) * 1000)
+    rag_ms = int((time.monotonic() - rag_start) * 1000)
+    telemetry["timings_ms"]["rag"] = rag_ms
+    telemetry["rag"] = rag_telemetry
 
     # Perform a grounded web check for substantive agriculture questions. The
     # Gemini grounding metadata is retained even when another model writes the reply.
-    web_start = time.time()
-    web_result = research_web(prepared.retrieval_query, lang) if prepared.retrieval_query else None
-    web_ms = int((time.time() - web_start) * 1000)
+    web_start = time.monotonic()
+    web_telemetry: dict = {}
+    web_result = research_web(prepared.retrieval_query, lang, telemetry=web_telemetry) if prepared.retrieval_query else None
+    web_ms = int((time.monotonic() - web_start) * 1000)
+    telemetry["timings_ms"]["web"] = web_ms
+    telemetry["web"] = web_telemetry
     web_context = web_result.prompt_context() if web_result else ""
 
     # 5. Recent user context. Previous assistant output is deliberately excluded:
@@ -645,16 +715,20 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     {RUNTIME_GUARDRAILS}
     """
 
-    llm_start = time.time()
+    llm_start = time.monotonic()
+    inference_telemetry: dict = {}
     try:
-        response_text, model_used = ask_llm(system_prompt, task="response")
+        response_text, model_used = ask_llm(system_prompt, task="response", telemetry=inference_telemetry)
     except Exception as exc:
         # A malformed route or SDK/configuration failure must not leave the
         # user waiting indefinitely.
         logger.error("Response inference error: %s", type(exc).__name__)
         response_text, model_used = None, "error"
-    llm_ms = int((time.time() - llm_start) * 1000)
-    total_ms = int((time.time() - t_start) * 1000)
+    llm_ms = int((time.monotonic() - llm_start) * 1000)
+    total_ms = int((time.monotonic() - t_start) * 1000)
+    telemetry["timings_ms"]["response"] = llm_ms
+    telemetry["timings_ms"]["total"] = total_ms
+    telemetry["inference"] = inference_telemetry
 
     if not response_text:
         await status_msg.edit_text(ERR_MSGS.get(lang, ERR_MSGS["km"]))
@@ -668,6 +742,8 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     evidence_trace = {
         "rag": rag_result.trace() if rag_result else {"status": "not_run", "sources": []},
         "web": web_result.trace() if web_result else {"status": "not_run"},
+        "telemetry": telemetry,
+        "response_status": "ok" if response_text else "failed",
     }
     try:
         conn = psycopg2.connect(**DB_PARAMS)
@@ -679,16 +755,21 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 telegram_id, role, has_text, has_photo, has_audio, raw_user_text, diagnosis_title,
                 media_file_id, media_file_size_bytes, detected_language,
                 latitude, longitude,
-                rag_ms, web_ms, llm_ms, total_ms, soil_source, model_used, confidence_score,
+                rag_ms, web_ms, llm_ms, total_ms, soil_source, model_used,
+                rag_sources_count, rag_top_distance, tokens_prompt, tokens_completion, estimated_cost_usd,
+                confidence_score,
                 evidence_trace, requested_detail
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s)
             RETURNING id;
         """, (
             telegram_id, current_role, bool(user_text), has_photo, has_voice, raw_text_entry, response_text[:100],
             media_file_id, media_file_size, lang,
             lat if telegram_id in USER_LOCATIONS else None,
             lon if telegram_id in USER_LOCATIONS else None,
-                rag_ms, web_ms, llm_ms, total_ms, soil_source_for_audit(soil), model_used, 90,
+                rag_ms, web_ms, llm_ms, total_ms, soil_source_for_audit(soil), model_used,
+                len(rag_sources), rag_sources[0].distance if rag_sources else None,
+                inference_telemetry.get("tokens_prompt"), inference_telemetry.get("tokens_completion"),
+                inference_telemetry.get("estimated_cost_usd"), 90,
                 json.dumps(evidence_trace, ensure_ascii=False), requested_detail
             ))
         interaction_id = cur.fetchone()[0]

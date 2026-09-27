@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import hashlib
+import time
 from dataclasses import asdict, dataclass
 
 import psycopg2
@@ -45,24 +46,38 @@ class RagRetrieval:
     status: str
     sources: tuple[RetrievedSource, ...] = ()
     error_type: str | None = None
+    metrics: dict | None = None
 
     def trace(self) -> dict:
         return {
             "status": self.status,
             "error_type": self.error_type,
+            "metrics": self.metrics or {},
             "sources": [source.trace(rank) for rank, source in enumerate(self.sources, 1)],
         }
 
 
-def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) -> RagRetrieval:
+def retrieve_rag(
+    query: str,
+    limit: int = 3,
+    *,
+    raise_on_error: bool = False,
+    telemetry: dict | None = None,
+) -> RagRetrieval:
     """Retrieve only approved passages with an explicitly verified source URL."""
     if not query or query == "[Photo sent]":
         return RagRetrieval("skipped")
     conn = None
     cur = None
     try:
+        embedding_start = time.monotonic()
         res = client.models.embed_content(model="models/gemini-embedding-001", contents=query)
+        embedding_ms = int((time.monotonic() - embedding_start) * 1000)
         query_vector = res.embeddings[0].values
+        if telemetry is not None:
+            telemetry["embedding_ms"] = embedding_ms
+            telemetry["embedding_model"] = "gemini-embedding-001"
+        search_start = time.monotonic()
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
         # The pilot database keeps a legacy corpus; the clean production database does not.
@@ -122,6 +137,7 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
             (query_vector, limit),
         )
         rows = cur.fetchall()
+        query_ms = int((time.monotonic() - search_start) * 1000)
         sources = tuple(
             RetrievedSource(
                 corpus=row[0],
@@ -138,12 +154,19 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
             )
             for row in rows
         )
-        return RagRetrieval("ok" if sources else "no_sources", sources)
+        metrics = {"embedding_ms": embedding_ms, "query_ms": query_ms, "source_count": len(sources)}
+        if sources:
+            metrics["top_distance"] = sources[0].distance
+        if telemetry is not None:
+            telemetry.update(metrics)
+        return RagRetrieval("ok" if sources else "no_sources", sources, metrics=metrics)
     except Exception as exc:
         print(f"[RAG SEARCH ERROR] {type(exc).__name__}: {exc}")
         if raise_on_error:
             raise
-        return RagRetrieval("failed", error_type=type(exc).__name__)
+        if telemetry is not None:
+            telemetry["error_type"] = type(exc).__name__
+        return RagRetrieval("failed", error_type=type(exc).__name__, metrics=telemetry or {})
     finally:
         if cur is not None:
             cur.close()

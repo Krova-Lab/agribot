@@ -40,6 +40,24 @@ DEFAULT_ROUTES = {
 }
 
 
+def _estimate_cost(telemetry: dict) -> float | None:
+    """Estimate cost only when token pricing is explicitly configured."""
+    prompt_tokens = telemetry.get("tokens_prompt")
+    completion_tokens = telemetry.get("tokens_completion")
+    prompt_rate = os.getenv("KROVA_COST_PROMPT_USD_PER_1K")
+    completion_rate = os.getenv("KROVA_COST_COMPLETION_USD_PER_1K")
+    if prompt_tokens is None or completion_tokens is None or not prompt_rate or not completion_rate:
+        return None
+    try:
+        return round(
+            (int(prompt_tokens) / 1000) * float(prompt_rate)
+            + (int(completion_tokens) / 1000) * float(completion_rate),
+            8,
+        )
+    except (TypeError, ValueError):
+        return None
+
+
 @dataclass(frozen=True)
 class ModelRoute:
     provider: str
@@ -77,7 +95,14 @@ def _gemini_client(key: str) -> genai.Client:
     return genai.Client(api_key=key)
 
 
-def _gemini_generate(route: ModelRoute, prompt: str, payload: bytes | None, mime_type: str, temperature: float) -> str:
+def _gemini_generate(
+    route: ModelRoute,
+    prompt: str,
+    payload: bytes | None,
+    mime_type: str,
+    temperature: float,
+    telemetry: dict | None = None,
+) -> str:
     key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not key:
         raise RuntimeError("Gemini credentials are missing")
@@ -93,10 +118,22 @@ def _gemini_generate(route: ModelRoute, prompt: str, payload: bytes | None, mime
             tool_config={"function_calling_config": {"mode": "NONE"}},
         ),
     )
+    usage = getattr(response, "usage_metadata", None)
+    if telemetry is not None and usage is not None:
+        telemetry["tokens_prompt"] = getattr(usage, "prompt_token_count", None)
+        telemetry["tokens_completion"] = getattr(usage, "candidates_token_count", None)
     return response.text or ""
 
 
-def _azure_generate(route: ModelRoute, prompt: str, payload: bytes | None, mime_type: str, temperature: float, task: str) -> str:
+def _azure_generate(
+    route: ModelRoute,
+    prompt: str,
+    payload: bytes | None,
+    mime_type: str,
+    temperature: float,
+    task: str,
+    telemetry: dict | None = None,
+) -> str:
     base_url = os.getenv("AZURE_FOUNDRY_BASE_URL", "").rstrip("/")
     key = os.getenv("AZURE_FOUNDRY_API_KEY")
     if not base_url or not key:
@@ -145,7 +182,12 @@ def _azure_generate(route: ModelRoute, prompt: str, payload: bytes | None, mime_
         timeout=45,
     )
     response.raise_for_status()
-    return response.json()["choices"][0]["message"].get("content") or ""
+    body = response.json()
+    usage = body.get("usage") or {}
+    if telemetry is not None:
+        telemetry["tokens_prompt"] = usage.get("prompt_tokens")
+        telemetry["tokens_completion"] = usage.get("completion_tokens")
+    return body["choices"][0]["message"].get("content") or ""
 
 
 def ask_llm(
@@ -156,6 +198,7 @@ def ask_llm(
     model_name: str | None = None,
     temperature: float = 0.2,
     task: str = "response",
+    telemetry: dict | None = None,
 ) -> tuple[str | None, str]:
     """Try configured models in order; never log user content or credentials."""
     payload = media_bytes if media_bytes is not None else image_bytes
@@ -164,22 +207,44 @@ def ask_llm(
         provider, separator, model = model_name.partition(":")
         routes = [ModelRoute(provider, model)] if separator else [ModelRoute("gemini", model_name)]
     attempted = "none"
+    if telemetry is not None:
+        telemetry.setdefault("attempts", [])
+        telemetry["fallback_used"] = False
     for route in routes:
         attempted = route.label
         started = time.monotonic()
+        attempt: dict = {"model": route.label, "status": "failed"}
         try:
             if route.provider == "gemini":
-                answer = _gemini_generate(route, prompt, payload, mime_type, temperature)
+                answer = _gemini_generate(route, prompt, payload, mime_type, temperature, telemetry=attempt)
             elif route.provider == "azure":
-                answer = _azure_generate(route, prompt, payload, mime_type, temperature, task)
+                answer = _azure_generate(route, prompt, payload, mime_type, temperature, task, telemetry=attempt)
             else:
                 raise ValueError(f"Unsupported provider: {route.provider}")
             if not answer.strip():
                 raise ValueError("Empty model output")
-            logger.info("Inference task=%s model=%s duration_ms=%d", task, route.label, int((time.monotonic() - started) * 1000))
+            attempt["status"] = "ok"
+            attempt["duration_ms"] = int((time.monotonic() - started) * 1000)
+            if telemetry is not None:
+                telemetry["model_used"] = route.label
+                telemetry["duration_ms"] = attempt["duration_ms"]
+                telemetry["tokens_prompt"] = attempt.get("tokens_prompt")
+                telemetry["tokens_completion"] = attempt.get("tokens_completion")
+                telemetry["fallback_used"] = len(telemetry["attempts"]) + 1 > 1
+                telemetry["estimated_cost_usd"] = _estimate_cost(telemetry)
+                telemetry["attempts"].append(attempt)
+            logger.info("Inference task=%s model=%s duration_ms=%d", task, route.label, attempt["duration_ms"])
             return answer.strip(), route.label
         except Exception as exc:
+            attempt["duration_ms"] = int((time.monotonic() - started) * 1000)
+            attempt["error_type"] = type(exc).__name__
+            if telemetry is not None:
+                telemetry["attempts"].append(attempt)
+                telemetry["fallback_used"] = len(telemetry["attempts"]) > 1
             logger.warning("Inference failed task=%s model=%s error=%s", task, route.label, type(exc).__name__)
+    if telemetry is not None:
+        telemetry["duration_ms"] = sum(item.get("duration_ms", 0) for item in telemetry["attempts"])
+        telemetry["estimated_cost_usd"] = _estimate_cost(telemetry)
     return None, attempted
 
 

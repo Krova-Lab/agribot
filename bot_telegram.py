@@ -481,6 +481,14 @@ def get_audio_attachment(message):
     return None
 
 
+def classify_message_media(message):
+    """Classify one Telegram message with photo taking precedence over audio."""
+    has_photo = bool(getattr(message, "photo", None))
+    if has_photo:
+        return True, None
+    return False, get_audio_attachment(message)
+
+
 async def handle_user_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Process supported audio documents and explain unsupported documents."""
 
@@ -536,9 +544,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
     run_maintenance_if_due()
-    has_photo = bool(message.photo)
-    audio_attachment = get_audio_attachment(message)
-    has_voice = bool(message.voice)
+    has_photo, audio_attachment = classify_message_media(message)
     has_audio = audio_attachment is not None
 
     lang = detect_ui_lang(user_text)

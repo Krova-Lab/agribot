@@ -67,6 +67,19 @@ class BotMessagePathTests(unittest.IsolatedAsyncioTestCase):
             bot_telegram.get_audio_attachment(SimpleNamespace(document=document, voice=None, audio=None))
         )
 
+    def test_photo_takes_precedence_over_audio_attachment(self):
+        message = SimpleNamespace(
+            photo=[SimpleNamespace(file_id="photo")],
+            voice=SimpleNamespace(file_id="voice"),
+            audio=SimpleNamespace(mime_type="audio/ogg"),
+            document=None,
+        )
+
+        has_photo, audio_attachment = bot_telegram.classify_message_media(message)
+
+        self.assertTrue(has_photo)
+        self.assertIsNone(audio_attachment)
+
     def test_source_request_detection_is_explicit(self):
         self.assertFalse(bot_telegram.user_requests_sources("Comment traiter les feuilles jaunes du riz ?"))
         self.assertFalse(bot_telegram.user_requests_sources("Peux-tu me donner plus de détails ?"))

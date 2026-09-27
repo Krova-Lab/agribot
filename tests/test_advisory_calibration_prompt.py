@@ -41,6 +41,13 @@ class AdvisoryCalibrationPromptTests(unittest.TestCase):
         self.assertIn("do not expose internal RAG wording", source)
         self.assertIn("Give the useful general guidance first", source)
 
+    def test_runtime_guardrails_override_stale_private_prompt_identity(self):
+        source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")
+        self.assertIn("Runtime guardrails (highest priority)", source)
+        self.assertIn("Never claim or imply affiliation with CARDI, MAFF", source)
+        self.assertIn("Do not use Phnom Penh as an implicit fallback", source)
+        self.assertIn("Do not list or append sources unless the user explicitly asks", source)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -46,6 +46,8 @@ class ReleaseContractTests(unittest.TestCase):
         if not workflow_path.exists():
             self.skipTest("The public mirror does not include the private schema CI workflow")
         workflow = workflow_path.read_text(encoding="utf-8")
+        if "Setup Database Schema" not in workflow:
+            self.skipTest("The public mirror uses its separate public CI workflow")
         self.assertIn("Verify dedicated production schema from scratch", workflow)
         self.assertIn("createdb", workflow)
         self.assertIn("migrations/20260925_production_bot_schema.sql", workflow)

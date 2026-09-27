@@ -61,6 +61,11 @@ an optional sidecar locator such as a chapter or printed page range is retained
 alongside it. For non-paginated sources, supply the best verifiable section in the
 sidecar rather than relying on the document title alone.
 
+The pilot database may still expose the legacy `knowledge_base` table. The
+retrieval layer detects it and includes only its verified rows. The dedicated
+production database intentionally omits that legacy table and searches
+`rag_documents` directly.
+
 For substantive agriculture questions, the bot separately calls Gemini with
 Google Search grounding enabled, even when Azure is configured as the response
 model. It records whether grounding occurred, the search queries, model, source

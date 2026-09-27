@@ -65,17 +65,10 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
         query_vector = res.embeddings[0].values
         conn = psycopg2.connect(**DB_PARAMS)
         cur = conn.cursor()
-        cur.execute(
-            """
-            WITH candidates AS (
-                SELECT 'rag_documents'::text AS corpus, id, source_title, content,
-                       source_url, source_publisher, source_publication_date,
-                       source_license, source_locator, content_sha256, embedding
-                FROM rag_documents
-                WHERE embedding IS NOT NULL
-                  AND audit_status = 'approved'
-                  AND provenance_status = 'verified'
-                  AND NULLIF(BTRIM(source_url), '') IS NOT NULL
+        # The pilot database keeps a legacy corpus; the clean production database does not.
+        cur.execute("SELECT to_regclass('public.knowledge_base')")
+        legacy_corpus_exists = cur.fetchone()[0] is not None
+        legacy_union = """
                 UNION ALL
                 SELECT 'knowledge_base'::text AS corpus, id, source_title, content,
                        source_url, source_publisher, source_publication_date,
@@ -89,6 +82,19 @@ def retrieve_rag(query: str, limit: int = 3, *, raise_on_error: bool = False) ->
                       SELECT 1 FROM rag_documents AS rd
                       WHERE rd.file_sha256 = kb.file_sha256
                   )
+        """ if legacy_corpus_exists else ""
+        cur.execute(
+            f"""
+            WITH candidates AS (
+                SELECT 'rag_documents'::text AS corpus, id, source_title, content,
+                       source_url, source_publisher, source_publication_date,
+                       source_license, source_locator, content_sha256, embedding
+                FROM rag_documents
+                WHERE embedding IS NOT NULL
+                  AND audit_status = 'approved'
+                  AND provenance_status = 'verified'
+                  AND NULLIF(BTRIM(source_url), '') IS NOT NULL
+                {legacy_union}
             ),
             scored AS (
                 SELECT corpus, id, source_title, content, source_url,

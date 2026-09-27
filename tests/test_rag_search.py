@@ -21,6 +21,7 @@ class RagSearchTests(unittest.TestCase):
         embedding = SimpleNamespace(embeddings=[SimpleNamespace(values=[0.1, 0.2])])
         model = SimpleNamespace(embed_content=MagicMock(return_value=embedding))
         connection = MagicMock()
+        connection.cursor.return_value.fetchone.return_value = ("knowledge_base",)
         connection.cursor.return_value.fetchall.return_value = [
             ("rag_documents", 7, "IRRI water guide", "Keep the field shallow after transplanting.",
              "https://irri.org/water", "IRRI", date(2024, 1, 1), "CC BY 4.0", "Section 3, p. 12", "abc123", 0.12),
@@ -48,6 +49,21 @@ class RagSearchTests(unittest.TestCase):
         self.assertIn("Page/section: Section 3, p. 12", rag_search.format_rag_context(retrieval.sources))
         self.assertIn("Cosine distance (lower is closer): 0.1200", rag_search.format_rag_context(retrieval.sources))
         connection.close.assert_called_once()
+
+    def test_search_works_without_the_legacy_corpus_table(self):
+        embedding = SimpleNamespace(embeddings=[SimpleNamespace(values=[0.1, 0.2])])
+        model = SimpleNamespace(embed_content=MagicMock(return_value=embedding))
+        connection = MagicMock()
+        connection.cursor.return_value.fetchone.return_value = (None,)
+        connection.cursor.return_value.fetchall.return_value = []
+
+        with patch.object(rag_search, "client", SimpleNamespace(models=model)):
+            with patch.object(rag_search.psycopg2, "connect", return_value=connection):
+                retrieval = rag_search.retrieve_rag("rice irrigation", limit=3)
+
+        sql = connection.cursor.return_value.execute.call_args.args[0]
+        self.assertNotIn("FROM knowledge_base AS kb", sql)
+        self.assertEqual(retrieval.status, "no_sources")
 
     def test_search_can_surface_errors_for_integration_checks(self):
         embedding = SimpleNamespace(embeddings=[SimpleNamespace(values=[0.1, 0.2])])

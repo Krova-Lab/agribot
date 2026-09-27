@@ -70,7 +70,7 @@ flowchart LR
 
 - `bot_telegram.py` — Telegram gateway for text, voice, photo, language detection, access control, feedback, and interaction logging.
 - `bot_prod.py` — isolated future-public-bot shell for wait-list onboarding, settings, and quota status. It uses a dedicated database and token; it does not change the pilot bot.
-- `llm_adapter.py` — task-specific model routing and bounded failover to GPT-4o.
+- `llm_adapter.py` — task-specific model routing with bounded GPT-4o fallback.
 - `media_pipeline.py` — voice transcription or cautious image observation before retrieval.
 - `rag_search.py` — semantic retrieval of approved passages with verified source URLs, plus structured retrieval provenance.
 - `web_research.py` — on-demand Google Search grounding for substantive agricultural questions, with search queries and citations retained.
@@ -82,7 +82,7 @@ flowchart LR
 
 ### Models
 
-- **Conversation and vision:** `gemini-3.6-flash` by default, with GPT-4o as a configurable backup.
+- **Conversation and vision:** `gemini-3.6-flash` by default, with GPT-4o available as a configurable backup.
 - **Voice transcription:** `gemini-3.6-flash` by default.
 - **Semantic embeddings:** `models/gemini-embedding-001`
 - **Vector store:** PostgreSQL 16 with `pgvector`
@@ -124,7 +124,7 @@ If private prompts are unavailable, the application falls back to the community 
 - PostgreSQL 16 with `pgvector`
 - Telegram bot token
 - Gemini API key
-- Optional GPT-4o backup credentials
+- Optional GPT-4o backup configuration
 - Optional: Pl@ntNet API key for botanical identification
 
 ### Install

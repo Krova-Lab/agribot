@@ -24,11 +24,22 @@ class ReleaseContractTests(unittest.TestCase):
             encoding="utf-8"
         )
         self.assertIn("requires vector(3072)", contract)
+        self.assertIn("knowledge_base_exists", contract)
         schema_path = ROOT / "schema.sql"
         if schema_path.exists():
             schema = schema_path.read_text(encoding="utf-8")
             self.assertIn("embedding public.vector(3072)", schema)
             self.assertIn("embedding::public.halfvec(3072)", schema)
+
+    def test_production_rag_schema_excludes_the_legacy_corpus(self):
+        schema = (ROOT / "migrations/20260928_production_rag_schema.sql").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("CREATE TABLE IF NOT EXISTS public.rag_documents", schema)
+        self.assertIn("CREATE TABLE IF NOT EXISTS public.interactions", schema)
+        self.assertIn("production_unique_interaction_review", schema)
+        self.assertIn("prod_rag_documents_embedding_idx", schema)
+        self.assertNotIn("CREATE TABLE IF NOT EXISTS public.knowledge_base", schema)
 
     def test_failed_ingestion_moves_the_provenance_sidecar(self):
         source = (ROOT / "ingest_files.py").read_text(encoding="utf-8")

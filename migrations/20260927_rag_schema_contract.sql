@@ -4,7 +4,11 @@ DO $$
 DECLARE
     knowledge_base_embedding_type text;
     rag_documents_embedding_type text;
+    knowledge_base_exists boolean;
 BEGIN
+    SELECT to_regclass('public.knowledge_base') IS NOT NULL
+    INTO knowledge_base_exists;
+
     SELECT format_type(a.atttypid, a.atttypmod)
     INTO knowledge_base_embedding_type
     FROM pg_class AS c
@@ -21,8 +25,8 @@ BEGIN
       AND a.attname = 'embedding'
       AND a.attnum > 0;
 
-    IF knowledge_base_embedding_type <> 'vector(3072)'
-       OR rag_documents_embedding_type <> 'vector(3072)' THEN
+    IF rag_documents_embedding_type <> 'vector(3072)'
+       OR (knowledge_base_exists AND knowledge_base_embedding_type <> 'vector(3072)') THEN
         RAISE EXCEPTION
             'RAG schema contract requires vector(3072): knowledge_base=%, rag_documents=%',
             knowledge_base_embedding_type,

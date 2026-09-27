@@ -34,16 +34,30 @@ PROD_DB_PORT=5432
 KROVA_PROD_TELEGRAM_BOT_TOKEN=replace-with-the-new-bot-token
 ```
 
-Apply [the production schema](../migrations/20260925_production_bot_schema.sql) while connected to `krova_prod`:
+Apply the dedicated onboarding schema and the production RAG schema while
+connected to `krova_prod`:
 
 ```bash
 PGPASSWORD="$PROD_DB_PASSWORD" psql \
   -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" \
   -U "$PROD_DB_USER" -d "$PROD_DB_NAME" \
   -f migrations/20260925_production_bot_schema.sql
+PGPASSWORD="$PROD_DB_PASSWORD" psql \
+  -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" \
+  -U "$PROD_DB_USER" -d "$PROD_DB_NAME" \
+  -f migrations/20260928_production_rag_schema.sql
+PGPASSWORD="$PROD_DB_PASSWORD" psql \
+  -h "$PROD_DB_HOST" -p "$PROD_DB_PORT" \
+  -U "$PROD_DB_USER" -d "$PROD_DB_NAME" \
+  -f migrations/20260927_rag_schema_contract.sql
 ```
 
 `bot_prod.py` refuses to start when the dedicated database settings are missing and never falls back to `DB_NAME`, `DB_USER`, or the pilot database password.
+
+The production database contains only the current onboarding, interaction,
+review, preference, and verified-RAG structures. It does not copy the pilot's
+legacy `knowledge_base` corpus. Ingestion still starts as unverified and
+pending; only explicitly reviewed sources are available to retrieval.
 
 ## Run locally
 

@@ -431,12 +431,14 @@ def get_audio_attachment(message):
     audio = getattr(message, "audio", None)
     if audio:
         mime_type = (getattr(audio, "mime_type", None) or "audio/mpeg").lower()
+        mime_type = mime_type.split(";", 1)[0].strip()
         if mime_type in SUPPORTED_AUDIO_MIME_TYPES:
             return audio, mime_type, "audio"
 
     document = getattr(message, "document", None)
     if document:
         mime_type = (getattr(document, "mime_type", None) or "").lower()
+        mime_type = mime_type.split(";", 1)[0].strip()
         file_name = (getattr(document, "file_name", None) or "").lower()
         extension_mimes = {
             ".aac": "audio/aac",

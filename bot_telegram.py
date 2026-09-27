@@ -564,6 +564,14 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if prepared.interpretation_model:
         attached_desc = f"{attached_desc}\n    Interpreted evidence: {prepared.media_observation}"
 
+    location_instruction = """
+    Location handling (mandatory):
+    - If the user has not provided a province, district, commune, or GPS, answer with a useful Cambodia-wide baseline first. Missing location is not a reason to refuse, stop, or say that agricultural, soil, or weather information is unavailable.
+    - In that case, distinguish clearly between general Cambodian guidance and plot-specific facts. Say that local soil, current weather, or parcel-level diagnosis would need more context or measurements; do not turn that limitation into the whole answer.
+    - If the user names a place in text or intelligible audio, use it as regional context without inventing plot-level soil, weather, or management facts. Ask for more detail only if it could materially change the advice.
+    - Never use Phnom Penh or any other city as an unprovided default location.
+    """
+
     system_prompt = f"""
     {PROMPTS.get("system_prompt", "You are an agricultural assistant.")}
 
@@ -587,6 +595,7 @@ async def handle_user_input(update: Update, context: ContextTypes.DEFAULT_TYPE):
     - {PROMPTS.get("response_style", "Answer briefly and practically. Do not list sources unless the user explicitly asks for them.")}
     - Response detail preference: {detail_preference}. The default is concise and mobile-friendly. Use a fuller answer only when the user explicitly asks for detail or this preference has been inferred from repeated recent requests.
     - Give the essential answer first. If the user may reasonably want to continue, end with a natural, optional invitation to ask for more detail or another question. Do not use the same closing mechanically when it would be awkward.
+    {location_instruction}
     0. Source and location integrity:
        - Krova Agri is independent. Do not imply affiliation with CARDI, MAFF, or any other institution.
        - Do not attribute a recommendation to an institution from a document title alone. Name a source only when a specific, verifiable reference is available in the supplied context; otherwise say the source is unverified.

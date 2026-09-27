@@ -48,6 +48,13 @@ class AdvisoryCalibrationPromptTests(unittest.TestCase):
         self.assertIn("Do not use Phnom Penh as an implicit fallback", source)
         self.assertIn("Do not list or append sources unless the user explicitly asks", source)
 
+    def test_runtime_location_instruction_requires_a_cambodia_baseline(self):
+        source = (ROOT / "bot_telegram.py").read_text(encoding="utf-8")
+        self.assertIn("answer with a useful Cambodia-wide baseline first", source)
+        self.assertIn("Missing location is not a reason to refuse, stop", source)
+        self.assertIn("do not turn that limitation into the whole answer", source)
+        self.assertIn("Never use Phnom Penh or any other city as an unprovided default location", source)
+
 
 if __name__ == "__main__":
     unittest.main()

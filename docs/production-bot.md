@@ -54,6 +54,12 @@ PGPASSWORD="$PROD_DB_PASSWORD" psql \
 
 `bot_prod.py` refuses to start when the dedicated database settings are missing and never falls back to `DB_NAME`, `DB_USER`, or the pilot database password.
 
+The private CI also rehearses these exact production migrations against a new
+empty database on every push. It verifies that `rag_documents` exists and that
+the pilot-only `knowledge_base` table does not, then removes the temporary
+database. This is a schema installation check only; it does not ingest the
+production corpus.
+
 The production database contains only the current onboarding, interaction,
 review, preference, and verified-RAG structures. It does not copy the pilot's
 legacy `knowledge_base` corpus. Ingestion still starts as unverified and

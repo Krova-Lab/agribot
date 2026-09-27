@@ -41,6 +41,15 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("prod_rag_documents_embedding_idx", schema)
         self.assertNotIn("CREATE TABLE IF NOT EXISTS public.knowledge_base", schema)
 
+    def test_ci_has_a_clean_production_schema_rehearsal(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("Verify dedicated production schema from scratch", workflow)
+        self.assertIn("createdb", workflow)
+        self.assertIn("migrations/20260925_production_bot_schema.sql", workflow)
+        self.assertIn("migrations/20260928_production_rag_schema.sql", workflow)
+        self.assertIn("to_regclass('public.knowledge_base')", workflow)
+        self.assertIn("dropdb", workflow)
+
     def test_failed_ingestion_moves_the_provenance_sidecar(self):
         source = (ROOT / "ingest_files.py").read_text(encoding="utf-8")
         failure_block = source[source.index("except Exception as e:"):]

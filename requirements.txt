@@ -36,7 +36,7 @@ pycparser==3.0
 pydantic==2.13.5
 pydantic_core==2.46.5
 pyparsing==3.3.2
-pypdf==6.16.2
+pypdf==6.19.0
 python-docx==1.2.0
 python-dotenv==1.2.3
 python-telegram-bot==22.8
@@ -48,6 +48,6 @@ tqdm==4.70.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uritemplate==4.2.0
-urllib3==2.7.0
+urllib3==2.8.0
 uvicorn==0.52.4
 websockets==16.1.1

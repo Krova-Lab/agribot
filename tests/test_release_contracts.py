@@ -13,6 +13,11 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("return bool(all_ok)", source)
         self.assertIn("SystemExit(0 if run_e2e_suite() else 1)", source)
 
+    def test_ci_does_not_use_a_persistent_self_hosted_runner(self):
+        workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+        self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertNotIn("self-hosted", workflow)
+
     def test_ci_schema_setup_is_strict_when_present(self):
         workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
         if "Setup Database Schema" in workflow:
